@@ -60,13 +60,18 @@ final class InputBlocker {
         // authMode == true and the next lock would pass the keyboard straight
         // through. Re-arm defensively here.
         self.authMode = false
-        guard installTap() else {
-            self.onUnlockKey = nil
-            self.onLockedKey = nil
-            NSLog("InputBlocker: tapCreate failed (grant Input Monitoring AND Accessibility).")
-            return false
+        // Tap creation can fail TRANSIENTLY even when Accessibility is granted —
+        // the system is momentarily busy, or TCC is re-validating the binary
+        // right after a grant or a rebuild. Retry briefly before giving up so a
+        // one-off hiccup doesn't surface as "couldn't enable input blocking".
+        for attempt in 1...4 {
+            if installTap() { return true }
+            if attempt < 4 { Thread.sleep(forTimeInterval: 0.12) }
         }
-        return true
+        self.onUnlockKey = nil
+        self.onLockedKey = nil
+        NSLog("InputBlocker: tapCreate failed after retries (grant Accessibility).")
+        return false
     }
 
     @discardableResult
