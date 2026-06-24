@@ -3,7 +3,7 @@ import AppKit
 
 /// System-wide hot key (⌃⌥⌘L) via Carbon. No Accessibility/TCC permission
 /// required (registers with the WindowServer rather than tapping events).
-final class GlobalHotKey: @unchecked Sendable {
+final class GlobalHotKey {
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
     private let onPressed: @Sendable () -> Void
