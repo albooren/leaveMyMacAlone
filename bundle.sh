@@ -51,7 +51,10 @@ done
 # override with SIGN_IDENTITY="My Cert Name" ./bundle.sh
 SIGN_IDENTITY="${SIGN_IDENTITY:-}"
 if [[ -z "${SIGN_IDENTITY}" ]]; then
-    if security find-identity -v -p codesigning 2>/dev/null | grep -q "LeaveMyMacAlone Dev"; then
+    # Match WITHOUT -v: a self-signed dev cert is untrusted (CSSMERR_TP_NOT_TRUSTED)
+    # so it never appears in the "valid only" (-v) list, yet codesign signs with
+    # it fine and TCC keys on it (stable identity → grants survive rebuilds).
+    if security find-identity -p codesigning 2>/dev/null | grep -q "LeaveMyMacAlone Dev"; then
         SIGN_IDENTITY="LeaveMyMacAlone Dev"
     else
         SIGN_IDENTITY="-"
