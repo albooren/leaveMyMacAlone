@@ -23,7 +23,7 @@ let package = Package(
         ),
         .testTarget(
             name: "LeaveMyMacAloneTests",
-            dependencies: ["LeaveMyMacAloneCore"]
+            dependencies: ["LeaveMyMacAloneCore", "LeaveMyMacAlone"]
         )
     ]
 )

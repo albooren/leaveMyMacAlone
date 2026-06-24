@@ -2,8 +2,14 @@ import Cocoa
 import CoreGraphics
 import ApplicationServices
 
-/// Consuming (.defaultTap) session-level CGEventTap that swallows all
-/// keyboard and mouse input while the Mac is locked.
+/// Consuming (.defaultTap) session-level CGEventTap that blocks the KEYBOARD
+/// while the Mac is locked. The mouse is intentionally NOT tapped, so the cursor
+/// keeps working and clicks flow to the full-screen shield (which covers every
+/// display at the top window level — a click can only ever land on the shield,
+/// never an app behind it). App/Space switching is held off by the kiosk's
+/// presentation options while we are frontmost. During authentication the tap
+/// passes plain typing to the password screen and swallows only escape
+/// shortcuts.
 ///
 /// PERMISSIONS: a consuming tap is gated by Input Monitoring (TCC ListenEvent)
 /// and may additionally need Accessibility. We request both but never treat a
@@ -12,11 +18,14 @@ import ApplicationServices
 final class InputBlocker {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var onFirstInteraction: (@Sendable () -> Void)?
-    private var firstInteractionFired = false
     // While true the tap stays live but only swallows escape shortcuts, letting
-    // plain input through to the auth sheet (see handle / isEscapeShortcut).
+    // plain typing through to the auth sheet (see handle / isEscapeShortcut).
     private var authMode = false
+    // Keyboard hooks for the locked state (the keyboard is swallowed regardless):
+    // Space/Return begin auth (like the "Kilidi Aç" button); any other key fires
+    // the "still locked" flash.
+    private var onUnlockKey: (@Sendable () -> Void)?
+    private var onLockedKey: (@Sendable () -> Void)?
 
     // MARK: - Permissions
 
@@ -47,12 +56,20 @@ final class InputBlocker {
     // MARK: - Lifecycle
 
     @discardableResult
-    func start(onFirstInteraction: @escaping @Sendable () -> Void) -> Bool {
+    func start(onUnlockKey: @escaping @Sendable () -> Void,
+               onLockedKey: @escaping @Sendable () -> Void) -> Bool {
         guard eventTap == nil else { return true }   // already running
-        self.onFirstInteraction = onFirstInteraction
-        self.firstInteractionFired = false
+        self.onUnlockKey = onUnlockKey
+        self.onLockedKey = onLockedKey
+        // A fresh lock MUST start in full-block mode. authMode is only cleared
+        // by endAuthMode(), but the success/fail-safe teardowns all call stop()
+        // directly — so without this reset a prior auth cycle would leave
+        // authMode == true and the next lock would pass the keyboard straight
+        // through. Re-arm defensively here.
+        self.authMode = false
         guard installTap() else {
-            self.onFirstInteraction = nil
+            self.onUnlockKey = nil
+            self.onLockedKey = nil
             NSLog("InputBlocker: tapCreate failed (grant Input Monitoring AND Accessibility).")
             return false
         }
@@ -61,21 +78,15 @@ final class InputBlocker {
 
     @discardableResult
     private func installTap() -> Bool {
+        // Keyboard only: the mouse is deliberately left untapped so the cursor
+        // works and clicks reach the shield UI. The shield (top window level,
+        // covering every display) keeps those clicks off the apps behind it, and
+        // the kiosk's presentation options block App/Space switching, so the
+        // keyboard is the only stream we must intercept.
         var mask: CGEventMask = 0
         mask |= (1 << CGEventType.keyDown.rawValue)
         mask |= (1 << CGEventType.keyUp.rawValue)
         mask |= (1 << CGEventType.flagsChanged.rawValue)
-        mask |= (1 << CGEventType.leftMouseDown.rawValue)
-        mask |= (1 << CGEventType.leftMouseUp.rawValue)
-        mask |= (1 << CGEventType.rightMouseDown.rawValue)
-        mask |= (1 << CGEventType.rightMouseUp.rawValue)
-        mask |= (1 << CGEventType.otherMouseDown.rawValue)
-        mask |= (1 << CGEventType.otherMouseUp.rawValue)
-        mask |= (1 << CGEventType.mouseMoved.rawValue)
-        mask |= (1 << CGEventType.leftMouseDragged.rawValue)
-        mask |= (1 << CGEventType.rightMouseDragged.rawValue)
-        mask |= (1 << CGEventType.otherMouseDragged.rawValue)
-        mask |= (1 << CGEventType.scrollWheel.rawValue)
 
         let userInfo = Unmanaged.passUnretained(self).toOpaque()
 
@@ -126,26 +137,39 @@ final class InputBlocker {
             return nil
         }
 
-        // During authentication the tap stays LIVE (it is not paused) so the
-        // lock keeps blocking the escapes that would otherwise let a passer-by
-        // act or strand the owner, while plain typing/clicks still reach the
-        // separate-process auth sheet so the password can be entered.
+        // Only keyboard events reach this tap (the mask is keyboard-only). During
+        // authentication the tap stays LIVE so the lock keeps blocking the
+        // escape shortcuts that would otherwise let a passer-by act or strand
+        // the owner, while plain typing reaches the separate-process auth screen
+        // so the password can be entered.
         if authMode {
             return Self.isEscapeShortcut(type: type, event: event)
                 ? nil                                // swallow the escape
-                : Unmanaged.passUnretained(event)    // deliver to the sheet
+                : Unmanaged.passUnretained(event)    // deliver to the password screen
         }
 
-        if !firstInteractionFired {
-            firstInteractionFired = true
-            let cb = onFirstInteraction
-            DispatchQueue.main.async {
-                cb?()
-            }
+        // Locked: the keyboard is always swallowed (the mouse is untapped, so the
+        // cursor and the shield button keep working). On a real key press,
+        // Space/Return begin auth — same as the "Kilidi Aç" button — and any
+        // other key flashes the lock badge so the user learns the way out.
+        // Autorepeat (key held down) is ignored so holding a key doesn't spam.
+        if type == .keyDown,
+           event.getIntegerValueField(.keyboardEventAutorepeat) == 0 {
+            let cb = Self.isUnlockKey(event) ? onUnlockKey : onLockedKey
+            DispatchQueue.main.async { cb?() }
         }
-
-        // Swallow every event while locked.
         return nil
+    }
+
+    /// Space, Return or keypad Enter — the keyboard equivalents of pressing the
+    /// "Kilidi Aç" button.
+    private static func isUnlockKey(_ event: CGEvent) -> Bool {
+        switch event.getIntegerValueField(.keyboardEventKeycode) {
+        case 0x31, 0x24, 0x4C:   // Space · Return · keypad Enter
+            return true
+        default:
+            return false
+        }
     }
 
     /// App/Space-switching and launcher shortcuts that must stay blocked even
@@ -189,9 +213,12 @@ final class InputBlocker {
     @discardableResult
     func endAuthMode() -> Bool {
         authMode = false
-        firstInteractionFired = false
         return ensureLive()
     }
+
+    /// Test hook: whether the tap is in pass-through (auth) mode. A fresh lock
+    /// must always read false here, regardless of how the prior cycle ended.
+    var isAuthModeActiveForTesting: Bool { authMode }
 
     /// True if the tap exists and is currently enabled.
     func isLive() -> Bool {
@@ -225,7 +252,8 @@ final class InputBlocker {
 
     func stop() {
         teardownTap()
-        onFirstInteraction = nil
-        firstInteractionFired = false
+        authMode = false
+        onUnlockKey = nil
+        onLockedKey = nil
     }
 }

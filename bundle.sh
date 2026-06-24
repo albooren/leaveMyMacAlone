@@ -29,15 +29,34 @@ cp "${ROOT}/Resources/Info.plist" "${APP}/Contents/Info.plist"
 # Validate the plist before signing.
 plutil -lint "${APP}/Contents/Info.plist"
 
-# 4) Ad-hoc codesign with entitlements + hardened runtime.
+# 4) Codesign with entitlements + hardened runtime.
+#
+# Signing identity: prefer a STABLE self-signed code-signing certificate so that
+# Accessibility / Input Monitoring (TCC) grants SURVIVE rebuilds — TCC keys the
+# grant on (bundle id + signing identity), and a stable cert keeps that constant.
+# Ad-hoc ("-") is re-keyed from the binary content on every build, so it resets
+# those grants each time. Create the cert once via Keychain Access > Certificate
+# Assistant (Code Signing, self-signed) named exactly "LeaveMyMacAlone Dev", or
+# override with SIGN_IDENTITY="My Cert Name" ./bundle.sh
+SIGN_IDENTITY="${SIGN_IDENTITY:-}"
+if [[ -z "${SIGN_IDENTITY}" ]]; then
+    if security find-identity -v -p codesigning 2>/dev/null | grep -q "LeaveMyMacAlone Dev"; then
+        SIGN_IDENTITY="LeaveMyMacAlone Dev"
+    else
+        SIGN_IDENTITY="-"
+    fi
+fi
+echo "Signing with identity: ${SIGN_IDENTITY} ($([[ "${SIGN_IDENTITY}" == "-" ]] && echo 'ad-hoc — TCC resets each build' || echo 'stable — TCC persists'))"
+
 codesign --force --deep \
-    --sign - \
+    --sign "${SIGN_IDENTITY}" \
     --entitlements "${ROOT}/Resources/${APP_NAME}.entitlements" \
     --options runtime \
     --identifier "${BUNDLE_ID}" \
     "${APP}"
 
-# 5) Verify signature and show the cdhash (changes every rebuild → TCC reset).
+# 5) Verify signature and show the cdhash (changes every rebuild; with a stable
+# identity the TCC Designated Requirement still matches, so grants persist).
 codesign --verify --strict --verbose=2 "${APP}"
 codesign -dvvv "${APP}" 2>&1 | grep -i 'CDHash='
 
