@@ -1,102 +1,94 @@
 # 🛡️ Leave My Mac Alone
 
-> Masandan kalktığında Mac'in çalışmaya devam etsin, ama kimse klavye/fareye dokunamasın.
+> Keep your Mac working while you step away — but stop anyone from touching the keyboard or mouse.
 
 ![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-black?logo=apple)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-[![Latest release](https://img.shields.io/github/v/release/albooren/leaveMyMacAlone?label=indir&color=success)](https://github.com/albooren/leaveMyMacAlone/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/albooren/leaveMyMacAlone?label=download&color=success)](https://github.com/albooren/leaveMyMacAlone/releases/latest)
 
-LeaveMyMacAlone, menü çubuğunda yaşayan küçük bir macOS aracı. Kilitlediğinde
-ekran uyumaz; üzerine ayarlanabilir koyulukta bir kilit katmanı düşer ve
-klavye/fare girişleri engellenir. Açmak için **Touch ID veya parola** gerekir —
-arkadaki işin (indirme, render, build…) kesintisiz sürer.
+LeaveMyMacAlone is a tiny macOS menu-bar app. When you lock, the screen stays
+awake, an adjustable dim layer drops over it, and keyboard/mouse input is blocked.
+Unlocking needs **Touch ID or your password** — so whatever is running in the
+background (downloads, renders, builds…) keeps going uninterrupted.
 
-## ✨ Özellikler
-- 🔒 **Tek tuşla kilit** — menüden "Şimdi Kilitle" veya **⌃⌥⌘L** kısayolu.
-- 👆 **Touch ID / parola** ile aç (Kilidi Aç butonu, ya da Space/Enter).
-- 🌗 **Ayarlanabilir koyuluk** — hafif tülden tam karartmaya; sürüklerken canlı önizleme.
-- ☕ **Uyumaz** — kilitliyken ekranı/sistemi uyanık tutar (isteğe bağlı kapatılır).
-- 🪶 **Tek izin** — yalnızca Erişilebilirlik (Giriş İzleme gerekmez).
-- 🧰 **Menü çubuğu uygulaması** — Dock'u kirletmez, açılışta otomatik kilitlemez.
-- 🆘 **SSH kill switch** — donarsa uzaktan `killall` ile kurtarma.
-- 🌍 Türkçe + İngilizce arayüz (sistem diline göre).
+## ✨ Features
+- 🔒 **One-tap lock** — "Lock Now" from the menu, or the **⌃⌥⌘L** hotkey.
+- 👆 **Touch ID / password** to unlock (Unlock button, or Space / Enter).
+- 🌗 **Adjustable darkness** — from a light tint to fully opaque; live preview while dragging.
+- ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
+- 🪶 **Single permission** — Accessibility only (no Input Monitoring needed).
+- 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch.
+- 🆘 **SSH kill switch** — recover remotely with `killall` if it ever hangs.
+- 🌍 Turkish + English UI (follows the system language).
 
-## 📦 Kurulum
-1. [Releases](https://github.com/albooren/leaveMyMacAlone/releases/latest)'tan
-   **`LeaveMyMacAlone.dmg`**'yi indir, aç, uygulamayı **Applications**'a sürükle.
-2. Çalıştır → menü çubuğunda kalkan simgesi belirir.
-3. İlk açılışta **Erişilebilirlik izni** istenir: "Erişilebilirlik Ayarlarını Aç"
-   → listede `LeaveMyMacAlone`'u aç. (Notarize'lı olduğu için Gatekeeper engellemez.)
+## 📦 Install
+1. Download **`LeaveMyMacAlone.dmg`** from
+   [Releases](https://github.com/albooren/leaveMyMacAlone/releases/latest), open it,
+   and drag the app to **Applications**.
+2. Launch it → a shield icon appears in the menu bar.
+3. On first launch it asks for **Accessibility**: click "Open Accessibility Settings"
+   → turn on `LeaveMyMacAlone` in the list. (It's notarized, so Gatekeeper won't block it.)
 
-## 🎛️ Kullanım
-| Eylem | Nasıl |
+## 🎛️ Usage
+| Action | How |
 |---|---|
-| **Kilitle** | Menü > Şimdi Kilitle · veya **⌃⌥⌘L** |
-| **Aç** | Kilidi Aç butonu / **Space** / **Enter** → Touch ID veya parola |
-| **Koyuluk** | Menü > kaydırıcı (açıkken ayarla; kalıcı) |
-| **Kilitliyken uyku** | Menü > "Kilitliyken uykuyu engelle" anahtarı |
-| **Çıkış** | Menü > Çıkış |
+| **Lock** | Menu > Lock Now · or **⌃⌥⌘L** |
+| **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
+| **Darkness** | Menu > slider (set it while unlocked; persists) |
+| **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
+| **Quit** | Menu > Quit |
 
-## 🆘 Donarsa kurtarma (SSH kill switch)
-Kilit takılırsa **başka bir cihazdan** uygulamayı öldürerek kurtar — arkadaki
-işin/oturumun kesilmeden (zorla restart'tan farkı bu):
+## 🆘 Recovery if it hangs (SSH kill switch)
+If the lock ever gets stuck, kill the app **from another device** — your background
+work and session keep running (unlike a forced restart):
 ```bash
-ssh <kullanıcı>@<mac-ip> 'killall LeaveMyMacAlone'
+ssh <user>@<mac-ip> 'killall LeaveMyMacAlone'
 ```
 
-**Ön koşul (Mac'te, tek sefer):** Sistem Ayarları > Genel > Paylaşım >
-**Uzaktan Oturum Açma (Remote Login)** → AÇ.
-(Terminal'den `systemsetup -setremotelogin on` Tam Disk Erişimi ister; en kolayı
-yukarıdaki GUI anahtarı.)
+**Prerequisite (on the Mac, once):** System Settings > General > Sharing >
+**Remote Login** → ON.
+(`systemsetup -setremotelogin on` from Terminal needs Full Disk Access; the GUI
+toggle above is easiest.)
 
-### 📱 iPhone'dan tek dokunuş (Kısayollar)
-Donmadan **önce** kur:
-1. **Kısayollar** uygulaması → yeni kısayol → **"SSH Üzerinden Betik Çalıştır"** eylemi.
-2. Doldur:
-   - **Sunucu:** Mac'in IP'si (örn. `192.168.1.x`) veya yerel adı (`<bilgisayar-adı>.local`)
-   - **Kapı:** `22`
-   - **Kullanıcı:** Mac kullanıcı adın
-   - **Kimlik Doğrulama:** Parola → Mac giriş parolan (ya da SSH anahtarı)
-   - **Betik:** `killall LeaveMyMacAlone`
-3. Adını "Mac Kilidini Aç" koy; Ana Ekran / Eylem Düğmesi / Siri'ye ekle.
+### 📱 One tap from iPhone (Shortcuts)
+Set this up **before** you ever get stuck:
+1. **Shortcuts** app → new shortcut → **"Run Script Over SSH"** action.
+2. Fill in:
+   - **Host:** your Mac's IP (e.g. `192.168.1.x`) or local name (`<computer-name>.local`)
+   - **Port:** `22`
+   - **User:** your Mac username
+   - **Authentication:** Password → your Mac login password (or an SSH key)
+   - **Script:** `killall LeaveMyMacAlone`
+3. Name it "Unlock Mac"; add it to the Home Screen / Action Button / Siri.
 
-Mac donduğunda kısayola dokun (aynı Wi-Fi'de) → kilit ölür, Mac açılır.
+When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the Mac is back.
 
-> **İpuçları:** iPhone ile Mac **aynı ağda** olmalı. IP değişebilir → router'da
-> DHCP rezervasyonu yap ya da `.local` adını kullan. Evden uzakta da erişmek için
-> **Tailscale** gibi ücretsiz bir VPN kurabilirsin.
+> **Tips:** the iPhone and Mac must be on the **same network**. The IP can change —
+> use a DHCP reservation on your router or the `.local` name. To reach it away from
+> home, set up a free VPN like **Tailscale**.
 >
-> **Son çare:** SSH yoksa, **güç tuşunu basılı tutmak** Mac'i donanımdan yeniden
-> başlatır (yazılım engelleyemez) — ama arkadaki işin de gider.
+> **Last resort:** with no SSH, **holding the power button** force-restarts the Mac
+> (software can't block that) — but your background work is lost too.
 
-## 🛠️ Geliştirme
+## 🛠️ Development
 ```bash
-swift build && swift test     # derle + test (22 test)
-./bundle.sh                   # yerel .app (self-signed dev imzası)
+swift build && swift test     # build + tests (22 tests)
+./bundle.sh                   # local .app (self-signed dev identity)
 ```
-Tek seferlik bir `LeaveMyMacAlone Dev` kod imzalama sertifikası oluşturursan
-(`bundle.sh` otomatik bulur), Erişilebilirlik izni yeniden derlemelerde kalıcı olur.
+Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds
+it automatically) and the Accessibility grant survives rebuilds.
 
-## 🚀 Yayın (notarized .dmg)
-Ayrıntı: [`docs/superpowers/specs/2026-06-24-macos-release-design.md`](docs/superpowers/specs/2026-06-24-macos-release-design.md).
-```bash
-export DEVELOPER_ID="Developer ID Application: Adın (TEAMID)"
-export NOTARY_PROFILE="lmma-notary"   # önceden: xcrun notarytool store-credentials
-./release.sh                          # imzalar → dmg → notarize → staple
-```
+## ⚠️ Honest limitations
+- On a bare laptop, **closing the lid** still sleeps it (hardware clamshell). Keep
+  the lid open, or attach an external display + power.
+- **Holding the power button** shuts it down at the hardware level (software can't block it).
+- It's non-sandboxed, so it **can't be on the Mac App Store**; it ships as a directly
+  notarized download.
+- It stops a prankster co-worker; it is not a military-grade lock.
 
-## ⚠️ Dürüst sınırlamalar
-- Çıplak laptopta **kapağı kapatmak** yine uyutur (donanımsal clamshell). Kapağı
-  açık tut veya harici ekran + güç bağla.
-- **Güç tuşuna basılı tutmak** donanımdan kapatır (yazılım engelleyemez).
-- Sandbox dışı olduğu için **Mac App Store'da değildir**; doğrudan notarized
-  indirme ile dağıtılır.
-- Şakacı bir iş arkadaşını durdurur; askeri sınıf bir kilit değildir.
+## 🔐 Privacy
+No network access, no data collection. LocalAuthentication for Touch ID/password,
+IOKit to keep awake, a CoreGraphics event tap to block input — all local.
 
-## 🔐 Gizlilik
-Ağ erişimi yok, veri toplama yok. Touch ID/parola için LocalAuthentication, uyku
-engelleme için IOKit, giriş engelleme için CoreGraphics event tap — hepsi yalnız
-yerel.
-
-## 📄 Lisans
+## 📄 License
 [MIT](LICENSE) © 2026 Alperen Kişi
