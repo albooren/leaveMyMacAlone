@@ -387,7 +387,7 @@ final class AppController {
                     self.showOnboardingTimeoutAlert(name: "Erişilebilirlik"); return
                 }
             }
-            self.showOnboardingCompleteAlert()
+            // Granted — sit silently in the menu bar; the user locks on demand.
         }
     }
 
@@ -423,17 +423,6 @@ final class AppController {
             if Task.isCancelled { return false }
         }
         return granted()
-    }
-
-    private func showOnboardingCompleteAlert() {
-        let alert = NSAlert()
-        alert.messageText = NSLocalizedString("İzinler verildi", comment: "Onboarding complete title")
-        alert.informativeText = NSLocalizedString(
-            "Artık menü çubuğundaki kalkan simgesinden kilitleyebilirsin.",
-            comment: "Onboarding complete body")
-        alert.addButton(withTitle: NSLocalizedString("Tamam", comment: "OK button"))
-        NSApp.activate()
-        alert.runModal()
     }
 
     private func showOnboardingTimeoutAlert(name: String) {

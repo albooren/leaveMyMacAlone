@@ -21,8 +21,6 @@
 "LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır." = "LeaveMyMacAlone needs the %@ permission to block input. Click the button below, find LeaveMyMacAlone in the list, and turn its switch on. It completes automatically once granted.";
 "%@ Ayarlarını Aç" = "Open %@ Settings";
 "İptal" = "Cancel";
-"İzinler verildi" = "Permissions granted";
-"Artık menü çubuğundaki kalkan simgesinden kilitleyebilirsin." = "You can now lock from the shield icon in the menu bar.";
 "Tamam" = "OK";
 "%@ izni doğrulanamadı" = "Couldn’t verify the %@ permission";
 "İzni verdiysen LeaveMyMacAlone'u kapatıp yeniden açmayı dene, sonra menüden kilitle." = "If you granted it, quit and reopen LeaveMyMacAlone, then lock from the menu.";
