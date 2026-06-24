@@ -71,11 +71,10 @@ final class AppController {
 
         registerPowerObservers()
 
-        // First run cannot auto-lock: granting Accessibility/Input Monitoring
-        // requires reaching System Settings, which a kiosk lock would hide.
-        if InputBlocker.hasRequiredPermissions() {
-            lock()
-        } else {
+        // Launch into the menu bar; NEVER auto-lock. The user locks on demand —
+        // the "Şimdi Kilitle" menu item or the ⌃⌥⌘L hot key. If permissions are
+        // missing, walk the user through granting them first.
+        if !InputBlocker.hasRequiredPermissions() {
             startPermissionOnboarding()
         }
     }
