@@ -43,15 +43,17 @@ final class InputBlocker {
 
     // MARK: - Lifecycle
 
-    func start(onFirstInteraction: @escaping @Sendable () -> Void) {
-        guard eventTap == nil else { return }
+    @discardableResult
+    func start(onFirstInteraction: @escaping @Sendable () -> Void) -> Bool {
+        guard eventTap == nil else { return true }   // already running
         self.onFirstInteraction = onFirstInteraction
         self.firstInteractionFired = false
-
         guard installTap() else {
+            self.onFirstInteraction = nil
             NSLog("InputBlocker: tapCreate failed (grant Input Monitoring AND Accessibility).")
-            return
+            return false
         }
+        return true
     }
 
     @discardableResult
@@ -138,14 +140,14 @@ final class InputBlocker {
         CGEvent.tapEnable(tap: tap, enable: false)
     }
 
-    func resume() {
-        guard let tap = eventTap else { return }
+    @discardableResult
+    func resume() -> Bool {
+        guard let tap = eventTap else { return false }
         firstInteractionFired = false
         CGEvent.tapEnable(tap: tap, enable: true)
-        if !CGEvent.tapIsEnabled(tap: tap) {
-            teardownTap()
-            _ = installTap()
-        }
+        if CGEvent.tapIsEnabled(tap: tap) { return true }
+        teardownTap()
+        return installTap()
     }
 
     private func teardownTap() {

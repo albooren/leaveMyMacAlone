@@ -48,4 +48,17 @@ final class LockStateTests: XCTestCase {
         XCTAssertTrue(machine.authFailed())
         XCTAssertEqual(machine.state, .locked)
     }
+
+    func testAbortLockFromLocked() {
+        var machine = LockStateMachine()
+        _ = machine.lock()
+        XCTAssertTrue(machine.abortLock())
+        XCTAssertEqual(machine.state, .unlocked)
+    }
+
+    func testAbortLockInvalidFromUnlocked() {
+        var machine = LockStateMachine()
+        XCTAssertFalse(machine.abortLock())
+        XCTAssertEqual(machine.state, .unlocked)
+    }
 }

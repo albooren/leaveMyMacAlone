@@ -39,4 +39,13 @@ public struct LockStateMachine {
         state = .locked
         return true
     }
+
+    /// Roll back a lock that could not fully engage its input protection.
+    /// Used when the event tap fails to install, so the app never strands the
+    /// user behind a visible-but-non-functional lock.
+    public mutating func abortLock() -> Bool {
+        guard state == .locked else { return false }
+        state = .unlocked
+        return true
+    }
 }

@@ -28,6 +28,10 @@ final class AppController {
         }
         menuBar = menu
 
+        // ⌃⌥⌘L registers with the WindowServer and is intentionally NOT consumed
+        // by the event tap, so it stays live as a re-lock affordance. lock() is a
+        // no-op unless state == .unlocked (the machine guard), so pressing it
+        // during authenticating/locked is safely ignored.
         hotKey = GlobalHotKey(onPressed: { [weak self] in
             guard let self else { return }
             Task { @MainActor in self.lock() }
@@ -53,10 +57,20 @@ final class AppController {
         sleepGuard.begin()
         shield.show(opacity: store.overlayOpacity)
         kiosk.engage()
-        inputBlocker.start(onFirstInteraction: { [weak self] in
+        let live = inputBlocker.start(onFirstInteraction: { [weak self] in
             guard let self else { return }
             Task { @MainActor in self.requestUnlock() }
         })
+        if !live {
+            // Input blocking could not engage — never strand the user behind a
+            // visible-but-non-functional lock. Roll back to unlocked and warn.
+            inputBlocker.stop()
+            kiosk.disengage()
+            shield.hide()
+            sleepGuard.end()
+            _ = machine.abortLock()
+            showTapFailureAlert()
+        }
     }
 
     private func requestUnlock() {
@@ -73,8 +87,18 @@ final class AppController {
                 shield.hide()
                 sleepGuard.end()
             } else {
-                _ = machine.authFailed()
-                inputBlocker.resume() // re-arm for the next interaction
+                if inputBlocker.resume() {
+                    _ = machine.authFailed()      // re-armed; stay locked
+                } else {
+                    // Tap could not be re-armed — fail safe to unlocked rather
+                    // than strand the user behind a non-consuming lock.
+                    _ = machine.authSucceeded()   // authenticating -> unlocked
+                    inputBlocker.stop()
+                    kiosk.disengage()
+                    shield.hide()
+                    sleepGuard.end()
+                    showTapFailureAlert()
+                }
             }
         }
     }
@@ -97,5 +121,19 @@ final class AppController {
            let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    private func showTapFailureAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Giriş engelleme kurulamadı"
+        alert.informativeText = """
+        Giriş engelleme (event tap) etkinleştirilemedi, bu yüzden kilit \
+        kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik bölümünden \
+        Erişilebilirlik ve Giriş İzleme izinlerinin verildiğinden emin ol, \
+        sonra tekrar kilitle.
+        """
+        alert.addButton(withTitle: "Tamam")
+        NSApp.activate()
+        alert.runModal()
     }
 }
