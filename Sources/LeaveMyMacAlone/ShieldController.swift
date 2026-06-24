@@ -6,6 +6,19 @@ import SwiftUI
 final class KeyableWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    // A click on the shield is a tap-independent unlock affordance. The event
+    // tap normally drives unlocking, but while it is paused (during auth) or
+    // dead, the covering window would otherwise be inert dead weight and could
+    // strand the user (e.g. after a Cmd+Tab escape leaves the auth sheet
+    // unreachable). In the .locked state the consuming tap swallows clicks
+    // before they reach here, so this fires only when the tap is NOT consuming
+    // — exactly when a recovery path is needed.
+    var onInteract: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) { onInteract?() }
+    override func rightMouseDown(with event: NSEvent) { onInteract?() }
+    override func otherMouseDown(with event: NSEvent) { onInteract?() }
 }
 
 // SwiftUI overlay: an adjustable dark tint plus an always-visible lock badge
@@ -42,6 +55,9 @@ final class ShieldController {
     // Overwritten by show(opacity:) before any window is built; the literal is
     // only a placeholder so the property is initialised.
     private var currentOpacity: Double = 0.5
+    // Tap-independent recovery hook invoked when the user clicks any shield
+    // window. Wired by AppController to the unlock/re-present flow.
+    private var onInteract: (() -> Void)?
 
     isolated deinit {
         if let token = screenObserver {
@@ -49,8 +65,9 @@ final class ShieldController {
         }
     }
 
-    func show(opacity: Double) {
+    func show(opacity: Double, onInteract: @escaping () -> Void) {
         currentOpacity = opacity
+        self.onInteract = onInteract
         rebuildWindows()
         if screenObserver == nil {
             screenObserver = NotificationCenter.default.addObserver(
@@ -81,6 +98,7 @@ final class ShieldController {
         }
         for window in windows { window.orderOut(nil) }
         windows.removeAll()
+        onInteract = nil
     }
 
     private func rebuildWindows() {
@@ -107,6 +125,8 @@ final class ShieldController {
             window.isReleasedWhenClosed = false
             window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
             window.setFrame(screen.frame, display: true)
+
+            window.onInteract = onInteract
 
             let host = NSHostingView(rootView: OverlayView(opacity: currentOpacity))
             host.frame = window.contentLayoutRect

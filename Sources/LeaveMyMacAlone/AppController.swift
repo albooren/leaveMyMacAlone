@@ -15,6 +15,18 @@ final class AppController {
     private var menuBar: MenuBarController?
     private var hotKey: GlobalHotKey?
 
+    // Auth lifecycle guards. `authEpoch` is bumped whenever an authentication
+    // attempt is started, superseded (re-present), or aborted (panic/watchdog);
+    // a completing attempt only acts on its result if its captured epoch still
+    // matches, so a stale/cancelled LAContext callback can never drive state.
+    private var authEpoch = 0
+    private var authTask: Task<Void, Never>?
+    private var watchdogTask: Task<Void, Never>?
+    // Upper bound on how long the app may sit in `.authenticating`. If the auth
+    // UI is dismissed/lost/hung without a result (e.g. the user escaped the
+    // sheet), this fail-safes back to a clean locked state instead of stranding.
+    private let authTimeout: Duration = .seconds(60)
+
     func start() {
         NSApp.setActivationPolicy(.accessory)
 
@@ -29,12 +41,13 @@ final class AppController {
         menuBar = menu
 
         // ⌃⌥⌘L registers with the WindowServer and is intentionally NOT consumed
-        // by the event tap, so it stays live as a re-lock affordance. lock() is a
-        // no-op unless state == .unlocked (the machine guard), so pressing it
-        // during authenticating/locked is safely ignored.
+        // by the event tap, so it stays live from ANY state as a panic
+        // affordance: lock when unlocked, and abort-back-to-locked when stuck in
+        // authentication (the single keyboard recovery path while the auth UI is
+        // unreachable). See handleHotKey.
         hotKey = GlobalHotKey(onPressed: { [weak self] in
             guard let self else { return }
-            Task { @MainActor in self.lock() }
+            Task { @MainActor in self.handleHotKey() }
         })
 
         store.onOpacityChange = { [weak self] opacity in
@@ -55,7 +68,13 @@ final class AppController {
     func lock() {
         guard machine.lock() else { return } // ignore if not unlocked
         sleepGuard.begin()
-        shield.show(opacity: store.overlayOpacity)
+        // The shield click is a tap-independent recovery affordance (see
+        // handleShieldInteraction): it works even when the event tap is paused
+        // (during auth) or dead, so a covering window can never strand the user.
+        shield.show(opacity: store.overlayOpacity, onInteract: { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in self.handleShieldInteraction() }
+        })
         kiosk.engage()
         let live = inputBlocker.start(onFirstInteraction: { [weak self] in
             guard let self else { return }
@@ -73,34 +92,121 @@ final class AppController {
         }
     }
 
+    // ⌃⌥⌘L from any state. The hot key is never consumed by the tap, so it is
+    // the guaranteed keyboard escape hatch.
+    private func handleHotKey() {
+        switch machine.state {
+        case .unlocked:
+            lock()
+        case .authenticating:
+            // Auth UI may be unreachable (e.g. after a Cmd+Tab escape). Abort
+            // it and return to a clean, fully-armed locked state.
+            panicRelock()
+        case .locked:
+            break // already locked; first interaction starts auth
+        }
+    }
+
+    // A click on any shield window. In `.locked` the consuming tap intercepts
+    // input before it reaches the window, so this fires only when the tap is NOT
+    // consuming — precisely the states where a recovery path is required.
+    private func handleShieldInteraction() {
+        switch machine.state {
+        case .locked:
+            requestUnlock()
+        case .authenticating:
+            // The in-flight auth sheet was lost behind the shield / made
+            // unreachable; bring a fresh one to the front instead of stranding.
+            startAuth()
+        case .unlocked:
+            break
+        }
+    }
+
     private func requestUnlock() {
         guard machine.beginAuth() else { return }
         // Stop consuming so the password fallback can be typed in the sheet.
         inputBlocker.pause()
-        Task { @MainActor in
+        startAuth()
+    }
+
+    /// Present (or re-present) the auth UI. Each call supersedes any in-flight
+    /// attempt via a fresh epoch, so only the newest sheet's result is honored.
+    private func startAuth() {
+        authEpoch &+= 1
+        let epoch = authEpoch
+        authenticator.cancel()      // abort any prior in-flight evaluation
+        authTask?.cancel()
+        NSApp.activate()            // re-take focus so the sheet is reachable
+        startWatchdog(epoch: epoch)
+        authTask = Task { @MainActor in
             let ok = await authenticator.authenticate(
                 reason: "Mac'in kilidini açmak için kimliğini doğrula")
-            if ok {
-                _ = machine.authSucceeded()
-                inputBlocker.stop()
-                kiosk.disengage()
-                shield.hide()
-                sleepGuard.end()
-            } else {
-                if inputBlocker.resume() {
-                    _ = machine.authFailed()      // re-armed; stay locked
-                } else {
-                    // Tap could not be re-armed — fail safe to unlocked rather
-                    // than strand the user behind a non-consuming lock.
-                    _ = machine.authSucceeded()   // authenticating -> unlocked
-                    inputBlocker.stop()
-                    kiosk.disengage()
-                    shield.hide()
-                    sleepGuard.end()
-                    showTapFailureAlert()
-                }
-            }
+            guard epoch == self.authEpoch else { return } // superseded → ignore
+            self.finishAuth(success: ok)
         }
+    }
+
+    private func finishAuth(success: Bool) {
+        cancelWatchdog()
+        if success {
+            _ = machine.authSucceeded()
+            inputBlocker.stop()
+            kiosk.disengage()
+            shield.hide()
+            sleepGuard.end()
+        } else if inputBlocker.resume() {
+            _ = machine.authFailed()          // re-armed; stay locked
+        } else {
+            // Tap could not be re-armed — fail safe rather than strand behind a
+            // non-consuming lock.
+            failSafeToUnlocked()
+        }
+    }
+
+    /// Abort an in-flight authentication and return to a clean locked state.
+    /// Invoked by ⌃⌥⌘L during auth and by the auth watchdog.
+    private func panicRelock() {
+        authEpoch &+= 1             // supersede the in-flight attempt's result
+        cancelWatchdog()
+        authenticator.cancel()
+        authTask?.cancel()
+        guard machine.state == .authenticating else { return }
+        if inputBlocker.resume() {
+            _ = machine.authFailed()          // authenticating -> locked
+        } else {
+            failSafeToUnlocked()
+        }
+    }
+
+    /// Last-resort teardown to unlocked when input blocking cannot be (re)armed.
+    private func failSafeToUnlocked() {
+        switch machine.state {
+        case .authenticating: _ = machine.authSucceeded() // -> unlocked
+        case .locked: _ = machine.abortLock()             // -> unlocked
+        case .unlocked: break
+        }
+        inputBlocker.stop()
+        kiosk.disengage()
+        shield.hide()
+        sleepGuard.end()
+        showTapFailureAlert()
+    }
+
+    private func startWatchdog(epoch: Int) {
+        cancelWatchdog()
+        watchdogTask = Task { @MainActor in
+            try? await Task.sleep(for: authTimeout)
+            guard !Task.isCancelled,
+                  epoch == self.authEpoch,
+                  self.machine.state == .authenticating else { return }
+            self.panicRelock()
+        }
+    }
+
+    private func cancelWatchdog() {
+        watchdogTask?.cancel()
+        watchdogTask = nil
     }
 
     private func showPermissionsAlert() {
