@@ -37,12 +37,37 @@ arkadaki işin (indirme, render, build…) kesintisiz sürer.
 | **Kilitliyken uyku** | Menü > "Kilitliyken uykuyu engelle" anahtarı |
 | **Çıkış** | Menü > Çıkış |
 
-## 🆘 Donarsa kurtarma
-Başka bir cihazdan:
+## 🆘 Donarsa kurtarma (SSH kill switch)
+Kilit takılırsa **başka bir cihazdan** uygulamayı öldürerek kurtar — arkadaki
+işin/oturumun kesilmeden (zorla restart'tan farkı bu):
 ```bash
 ssh <kullanıcı>@<mac-ip> 'killall LeaveMyMacAlone'
 ```
-(Hedef Mac'te Sistem Ayarları > Genel > Paylaşım > **Uzaktan Oturum Açma** açık olmalı.)
+
+**Ön koşul (Mac'te, tek sefer):** Sistem Ayarları > Genel > Paylaşım >
+**Uzaktan Oturum Açma (Remote Login)** → AÇ.
+(Terminal'den `systemsetup -setremotelogin on` Tam Disk Erişimi ister; en kolayı
+yukarıdaki GUI anahtarı.)
+
+### 📱 iPhone'dan tek dokunuş (Kısayollar)
+Donmadan **önce** kur:
+1. **Kısayollar** uygulaması → yeni kısayol → **"SSH Üzerinden Betik Çalıştır"** eylemi.
+2. Doldur:
+   - **Sunucu:** Mac'in IP'si (örn. `192.168.1.x`) veya yerel adı (`<bilgisayar-adı>.local`)
+   - **Kapı:** `22`
+   - **Kullanıcı:** Mac kullanıcı adın
+   - **Kimlik Doğrulama:** Parola → Mac giriş parolan (ya da SSH anahtarı)
+   - **Betik:** `killall LeaveMyMacAlone`
+3. Adını "Mac Kilidini Aç" koy; Ana Ekran / Eylem Düğmesi / Siri'ye ekle.
+
+Mac donduğunda kısayola dokun (aynı Wi-Fi'de) → kilit ölür, Mac açılır.
+
+> **İpuçları:** iPhone ile Mac **aynı ağda** olmalı. IP değişebilir → router'da
+> DHCP rezervasyonu yap ya da `.local` adını kullan. Evden uzakta da erişmek için
+> **Tailscale** gibi ücretsiz bir VPN kurabilirsin.
+>
+> **Son çare:** SSH yoksa, **güç tuşunu basılı tutmak** Mac'i donanımdan yeniden
+> başlatır (yazılım engelleyemez) — ama arkadaki işin de gider.
 
 ## 🛠️ Geliştirme
 ```bash
