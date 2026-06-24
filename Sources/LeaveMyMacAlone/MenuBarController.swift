@@ -33,19 +33,15 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Identity header.
-            HStack(spacing: 11) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("LeaveMyMacAlone")
-                        .font(.headline)
-                    Text("Ekran kilidi")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            // Identity header (centered: app icon + name).
+            HStack(spacing: 9) {
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable()
+                    .frame(width: 30, height: 30)
+                Text("LeaveMyMacAlone")
+                    .font(.headline)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
 
             Divider()
 

@@ -2,7 +2,6 @@
    are used verbatim when the system language is Turkish (no tr.lproj needed). */
 
 /* --- Menu bar panel & lock screen (SwiftUI) --- */
-"Ekran kilidi" = "Screen Lock";
 "Koyuluk" = "Darkness";
 "Kilit ekranının koyuluğunu ayarlar." = "Adjusts how dark the lock screen is.";
 "Kilitliyken uykuyu engelle" = "Prevent sleep while locked";
