@@ -26,6 +26,8 @@ final class AppController {
     // UI is dismissed/lost/hung without a result (e.g. the user escaped the
     // sheet), this fail-safes back to a clean locked state instead of stranding.
     private let authTimeout: Duration = .seconds(60)
+    // Retain power-notification tokens for the app's lifetime.
+    private var powerObservers: [NSObjectProtocol] = []
 
     func start() {
         NSApp.setActivationPolicy(.accessory)
@@ -54,6 +56,8 @@ final class AppController {
             guard let self else { return }
             Task { @MainActor in self.shield.setOpacity(opacity) }
         }
+
+        registerPowerObservers()
 
         // First run cannot auto-lock: granting Accessibility/Input Monitoring
         // requires reaching System Settings, which a kiosk lock would hide.
@@ -125,8 +129,10 @@ final class AppController {
 
     private func requestUnlock() {
         guard machine.beginAuth() else { return }
-        // Stop consuming so the password fallback can be typed in the sheet.
-        inputBlocker.pause()
+        // Keep the tap live but in auth mode: it stops consuming plain input
+        // (so the password sheet is usable) while still swallowing app/space
+        // switching and launcher shortcuts that would let a passer-by escape.
+        inputBlocker.beginAuthMode()
         startAuth()
     }
 
@@ -155,7 +161,7 @@ final class AppController {
             kiosk.disengage()
             shield.hide()
             sleepGuard.end()
-        } else if inputBlocker.resume() {
+        } else if inputBlocker.endAuthMode() {
             _ = machine.authFailed()          // re-armed; stay locked
         } else {
             // Tap could not be re-armed — fail safe rather than strand behind a
@@ -172,7 +178,7 @@ final class AppController {
         authenticator.cancel()
         authTask?.cancel()
         guard machine.state == .authenticating else { return }
-        if inputBlocker.resume() {
+        if inputBlocker.endAuthMode() {
             _ = machine.authFailed()          // authenticating -> locked
         } else {
             failSafeToUnlocked()
@@ -207,6 +213,42 @@ final class AppController {
     private func cancelWatchdog() {
         watchdogTask?.cancel()
         watchdogTask = nil
+    }
+
+    // MARK: - Power / session transitions
+
+    private func registerPowerObservers() {
+        let center = NSWorkspace.shared.notificationCenter
+        powerObservers.append(center.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.handleWake() }
+        })
+        powerObservers.append(center.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.handleSleep() }
+        })
+    }
+
+    /// A session-level tap and presentation options can lapse across sleep/wake.
+    /// Re-arm and re-assert if still locked; fail safe if input blocking is gone.
+    private func handleWake() {
+        guard machine.state == .locked else { return }
+        if inputBlocker.ensureLive() {
+            kiosk.reassert()
+            shield.reassert()
+        } else {
+            failSafeToUnlocked()
+        }
+    }
+
+    /// Don't sleep mid-authentication: collapse to a clean locked state so wake
+    /// resumes with the tap armed rather than stuck behind an unreachable sheet.
+    private func handleSleep() {
+        if machine.state == .authenticating {
+            panicRelock()
+        }
     }
 
     private func showPermissionsAlert() {

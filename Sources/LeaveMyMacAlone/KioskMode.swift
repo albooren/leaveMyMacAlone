@@ -39,6 +39,19 @@ final class KioskMode {
         isEngaged = true
     }
 
+    /// Re-apply the locked presentation options without toggling engaged state.
+    /// presentationOptions only hold while the app is active; sleep/wake or a
+    /// session switch can drop them, so re-assert when we resume.
+    func reassert() {
+        guard isEngaged else { return }
+        let app = NSApplication.shared
+        if app.activationPolicy() != .regular {
+            app.setActivationPolicy(.regular)
+        }
+        app.activate()
+        app.presentationOptions = Self.lockedOptions
+    }
+
     func disengage() {
         guard isEngaged else { return }
         let app = NSApplication.shared

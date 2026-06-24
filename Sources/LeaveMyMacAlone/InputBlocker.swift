@@ -14,6 +14,9 @@ final class InputBlocker {
     private var runLoopSource: CFRunLoopSource?
     private var onFirstInteraction: (@Sendable () -> Void)?
     private var firstInteractionFired = false
+    // While true the tap stays live but only swallows escape shortcuts, letting
+    // plain input through to the auth sheet (see handle / isEscapeShortcut).
+    private var authMode = false
 
     // MARK: - Permissions
 
@@ -123,6 +126,16 @@ final class InputBlocker {
             return nil
         }
 
+        // During authentication the tap stays LIVE (it is not paused) so the
+        // lock keeps blocking the escapes that would otherwise let a passer-by
+        // act or strand the owner, while plain typing/clicks still reach the
+        // separate-process auth sheet so the password can be entered.
+        if authMode {
+            return Self.isEscapeShortcut(type: type, event: event)
+                ? nil                                // swallow the escape
+                : Unmanaged.passUnretained(event)    // deliver to the sheet
+        }
+
         if !firstInteractionFired {
             firstInteractionFired = true
             let cb = onFirstInteraction
@@ -135,18 +148,67 @@ final class InputBlocker {
         return nil
     }
 
-    func pause() {
-        guard let tap = eventTap else { return }
-        CGEvent.tapEnable(tap: tap, enable: false)
+    /// App/Space-switching and launcher shortcuts that must stay blocked even
+    /// while the auth sheet is up. Keyboard-only: all mouse/scroll passes so the
+    /// sheet (and the shield's click-to-recover) stay usable. Conservative
+    /// denylist — anything not listed (incl. ⌘A/⌘C/⌘V and plain typing) passes
+    /// through to the password field.
+    private static func isEscapeShortcut(type: CGEventType, event: CGEvent) -> Bool {
+        guard type == .keyDown || type == .keyUp else { return false }
+        let flags = event.flags
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        let cmd = flags.contains(.maskCommand)
+        let ctrl = flags.contains(.maskControl)
+        let opt = flags.contains(.maskAlternate)
+
+        if cmd {
+            switch keyCode {
+            case 0x30, 0x32, 0x31: return true  // Tab (app switch) · ` (window cycle) · Space (Spotlight)
+            default: break
+            }
+        }
+        if cmd && opt && keyCode == 0x35 { return true }      // ⌥⌘Esc → Force Quit
+        if ctrl {
+            switch keyCode {
+            case 0x7B, 0x7C, 0x7D, 0x7E: return true          // Ctrl+arrows → Spaces / Mission Control
+            default: break
+            }
+        }
+        return false
     }
 
+    /// Enter authentication mode: the tap stays live but only swallows escape
+    /// shortcuts; plain input reaches the auth sheet.
+    func beginAuthMode() {
+        authMode = true
+    }
+
+    /// Leave authentication mode: resume swallowing all input and re-arm the
+    /// first-interaction trigger. Returns whether the tap is live afterwards;
+    /// false means the caller must fail safe rather than show a non-blocking lock.
     @discardableResult
-    func resume() -> Bool {
-        guard let tap = eventTap else { return false }
+    func endAuthMode() -> Bool {
+        authMode = false
         firstInteractionFired = false
-        CGEvent.tapEnable(tap: tap, enable: true)
-        if CGEvent.tapIsEnabled(tap: tap) { return true }
-        teardownTap()
+        return ensureLive()
+    }
+
+    /// True if the tap exists and is currently enabled.
+    func isLive() -> Bool {
+        guard let tap = eventTap else { return false }
+        return CGEvent.tapIsEnabled(tap: tap)
+    }
+
+    /// Ensure the tap is installed and enabled; reinstall if it died. Returns
+    /// the resulting liveness. Used to re-arm after sleep/wake or a session
+    /// switch where a session-level tap can be torn down by the system.
+    @discardableResult
+    func ensureLive() -> Bool {
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: true)
+            if CGEvent.tapIsEnabled(tap: tap) { return true }
+            teardownTap()
+        }
         return installTap()
     }
 

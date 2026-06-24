@@ -50,7 +50,11 @@ struct OverlayView: View {
 
 @MainActor
 final class ShieldController {
-    private var windows: [KeyableWindow] = []
+    // Keyed by CGDirectDisplayID so a screen-parameter change can be applied as
+    // a diff (add new displays, drop departed ones) instead of tearing every
+    // window down and rebuilding — which left a coverage gap, dropped the live
+    // clock, and thrashed the key window on each event.
+    private var windowsByDisplay: [CGDirectDisplayID: KeyableWindow] = [:]
     private var screenObserver: NSObjectProtocol?
     // Overwritten by show(opacity:) before any window is built; the literal is
     // only a placeholder so the property is initialised.
@@ -58,6 +62,9 @@ final class ShieldController {
     // Tap-independent recovery hook invoked when the user clicks any shield
     // window. Wired by AppController to the unlock/re-present flow.
     private var onInteract: (() -> Void)?
+    // Guards rebuilds so a queued screen-parameter notification that lands after
+    // hide() cannot resurrect a ghost shield over the unlocked desktop.
+    private var isShown = false
 
     isolated deinit {
         if let token = screenObserver {
@@ -68,6 +75,7 @@ final class ShieldController {
     func show(opacity: Double, onInteract: @escaping () -> Void) {
         currentOpacity = opacity
         self.onInteract = onInteract
+        isShown = true
         rebuildWindows()
         if screenObserver == nil {
             screenObserver = NotificationCenter.default.addObserver(
@@ -80,62 +88,90 @@ final class ShieldController {
         }
         // Allow the borderless app to become active so the window can be key.
         NSApp.activate()
-        windows.first?.makeKeyAndOrderFront(nil)
+        windowsByDisplay.first?.value.makeKeyAndOrderFront(nil)
     }
 
     func setOpacity(_ opacity: Double) {
         currentOpacity = opacity
-        for window in windows {
+        for window in windowsByDisplay.values {
             (window.contentView as? NSHostingView<OverlayView>)?
                 .rootView = OverlayView(opacity: opacity)
         }
     }
 
+    /// Re-raise existing shields and re-take activation without rebuilding.
+    /// Used after sleep/wake or a session switch, where a session-level overlay
+    /// can be displaced behind other windows.
+    func reassert() {
+        guard isShown else { return }
+        rebuildWindows()
+        NSApp.activate()
+    }
+
     func hide() {
+        isShown = false
         if let token = screenObserver {
             NotificationCenter.default.removeObserver(token)
             screenObserver = nil
         }
-        for window in windows { window.orderOut(nil) }
-        windows.removeAll()
+        for window in windowsByDisplay.values { window.orderOut(nil) }
+        windowsByDisplay.removeAll()
         onInteract = nil
     }
 
     private func rebuildWindows() {
-        for window in windows { window.orderOut(nil) }
-        windows.removeAll()
+        // A notification can be delivered after hide(); never cover an unlocked
+        // desktop.
+        guard isShown else { return }
 
         // CGShieldingWindowLevel(): above normal apps, the Dock, and the menu
         // bar, but below the system auth sheet (the intended unlock path).
         let shieldLevel = Int(CGShieldingWindowLevel())
 
+        var live: [CGDirectDisplayID: KeyableWindow] = [:]
         for screen in NSScreen.screens {
-            let window = KeyableWindow(
-                contentRect: screen.frame,
-                styleMask: .borderless,
-                backing: .buffered,
-                defer: false,
-                screen: screen
-            )
+            let id = Self.displayID(of: screen)
+            let window = windowsByDisplay[id] ?? makeWindow(level: shieldLevel, screen: screen)
+            // Reused windows: keep their content view (and live clock); just
+            // re-apply geometry, level and the recovery hook.
             window.level = NSWindow.Level(rawValue: shieldLevel)
-            window.backgroundColor = .clear
-            window.isOpaque = false
-            window.hasShadow = false
-            window.ignoresMouseEvents = false
-            window.isReleasedWhenClosed = false
-            window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
             window.setFrame(screen.frame, display: true)
-
             window.onInteract = onInteract
-
-            let host = NSHostingView(rootView: OverlayView(opacity: currentOpacity))
-            host.frame = window.contentLayoutRect
-            host.autoresizingMask = [.width, .height]
-            window.contentView = host
-
             window.orderFrontRegardless()
-            windows.append(window)
+            live[id] = window
         }
-        windows.first?.makeKeyAndOrderFront(nil)
+
+        // Drop shields for displays that went away.
+        for (id, window) in windowsByDisplay where live[id] == nil {
+            window.orderOut(nil)
+        }
+        windowsByDisplay = live
+    }
+
+    private func makeWindow(level: Int, screen: NSScreen) -> KeyableWindow {
+        let window = KeyableWindow(
+            contentRect: screen.frame,
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: false,
+            screen: screen
+        )
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = false
+        window.ignoresMouseEvents = false
+        window.isReleasedWhenClosed = false
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+
+        let host = NSHostingView(rootView: OverlayView(opacity: currentOpacity))
+        host.frame = window.contentLayoutRect
+        host.autoresizingMask = [.width, .height]
+        window.contentView = host
+        return window
+    }
+
+    private static func displayID(of screen: NSScreen) -> CGDirectDisplayID {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        return (screen.deviceDescription[key] as? NSNumber)?.uint32Value ?? 0
     }
 }

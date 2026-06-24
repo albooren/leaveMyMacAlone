@@ -109,20 +109,25 @@
 **Epoch tabanlı auth orkestrasyonu.** Her auth denemesi bir epoch alır; iptal/re-present sonrası eski LAContext callback'i epoch uyuşmazsa yok sayılır → çift-geçiş/yarış yok. Re-present (kalkana tıkla, `.authenticating`'de) eski sayfayı geçersiz kılıp yenisini öne getirir.
 - Dosyalar: `Authenticator` (`@MainActor`, `activeContext`, `cancel()`), `AppController.startAuth/finishAuth`.
 
+**M3 — Auth sırasında tam pause yerine KISITLI tap.** `inputBlocker.pause()` kaldırıldı; auth'ta tap **canlı kalır** (`beginAuthMode`/`endAuthMode`). `handle()` düz yazı/tıklamayı parola sayfasına geçirir, ama kaçış kısayollarını (`isEscapeShortcut`: Cmd+Tab, Cmd+`` ` ``, Cmd+Space, ⌥⌘Esc, Ctrl+oklar) yutar. Cmd+Tab deliğini ve A2/A3 bypass'ının çoğunu **kapatan asıl düzeltme**.
+- Dosyalar: `InputBlocker.swift` (`authMode`, `isEscapeShortcut`, `beginAuthMode`/`endAuthMode`), `AppController.swift`.
+- ⚠️ **EN RİSKLİ kalem:** denylist keyboard-only ve muhafazakar (düzenleme kombolarına — ⌘A/⌘C/⌘V — ve Touch ID'ye dokunmaz). Yanlış bir filtre olursa M1/M2/M4 fail-safe kurtarır. **Cihazda mutlaka test et** (parola yazılabiliyor mu + her kaçış etkisiz mi). Fare olayları (hot corner dahil) auth sayfası + M1 kurtarma için geçirilir; hot corner küçük bir kalıntı bypass'tır.
+
+**M5/M6 — Wake/sleep observer'ları.** `NSWorkspace.didWakeNotification`: `.locked` ise `inputBlocker.ensureLive()` + `kiosk.reassert()` + `shield.reassert()`; re-arm imkansızsa fail-safe. `willSleepNotification`: `.authenticating`'i `panicRelock()` ile temizle. Adresler: D1, D2, D3, E3.
+- Dosyalar: `AppController.swift` (`registerPowerObservers`/`handleWake`/`handleSleep`), `InputBlocker.isLive/ensureLive`, `KioskMode.reassert`, `ShieldController.reassert`.
+
+**M7/M8 — Diff-tabanlı `rebuildWindows()` + `isShown` guard.** Global teardown kaldırıldı; ekranlar `CGDirectDisplayID` ile diff'lenir (yeni ekle, gideni kaldır, mevcuda dokunma) → kapsama açığı + titreşim + saat sıfırlanması + key-thrash biter. `isShown` guard `hide()` sonrası hayalet kalkanı önler. Adresler: C1, C2, C3, C4.
+- Dosyalar: `ShieldController.swift` (`windowsByDisplay`, diff'li `rebuildWindows`, `makeWindow`, `displayID`, `isShown`).
+
 **Doğrulama:** `swift build` ✅, `swift test` ✅ (14 test). Sistem davranışı bu ortamda çalıştırılamadı — **cihazda manuel test gerekir** (§4 kontrol listesi).
 
-### ⏳ ÖNERİLEN SONRAKİ ADIMLAR (uygulanmadı — riske göre sıralı)
+### ⏳ KALAN (uygulanmadı)
 
-**M3 — Auth sırasında tam pause yerine KISITLI tap.** `inputBlocker.pause()` yerine tap'i canlı tut; `handle()` düz yazmayı parola sayfasına GEÇİR, ama uygulama/Space geçişi + launcher kombolarını (Cmd+Tab, Cmd+`` ` ``, Cmd+Space, Cmd+Opt+Esc, F3/F4, Ctrl+arrow, hot corner) YUT. Cmd+Tab deliğini ve A2/A3/A4 bypass'ını **kapatan asıl düzeltme**.
-- ⚠️ **EN RİSKLİ:** yanlış filtre parola girişini bozarsa strand yaratır → M1/M2 fail-safe yerinde olduğu için artık kurtarılabilir, ama yine de cihazda dikkatli test ister. macOS sürümleri arası kombo eşlemesi kırılgan.
+**M9/M10 — Stabil self-signed imza + ilk-çalıştırma izin yeniden-kontrolü.** `hasRequiredPermissions()` hard-gate'i canlı-tap sonucuna dayandır (dosyanın kendi yorumuyla tutarlı). Adresler: F1, F2. (Düşük şiddet, kurtarılabilir.)
 
-**M5/M6 — Wake/sleep observer'ları.** `didWakeNotification`/`willSleepNotification`: wake'te `.locked` ise tap canlılığını doğrula + gerekirse re-arm + kiosk re-assert; sleep'te `.authenticating`'i proaktif temizle. Adresler: D1, D2, D3, E3. `InputBlocker.isLive()` public gerekir.
+**Regresyon testi.** F4 için `start()` false dönünce rollback'i assert eden entegrasyon testi (alt sistemler için protokol-DI refactor gerekir).
 
-**M7/M8 — Diff-tabanlı `rebuildWindows()` + debounce + active-guard.** Global teardown yerine ekran setini diff'le (yeni ekle, gideni kaldır), 50-100ms debounce, `isShown` guard. Adresler: C1, C2, C3, C4.
-
-**M9/M10 — Stabil self-signed imza + ilk-çalıştırma izin yeniden-kontrolü.** `hasRequiredPermissions()` hard-gate'i canlı-tap sonucuna dayandır (dosyanın kendi yorumuyla tutarlı). Adresler: F1, F2.
-
-**Regresyon:** F4 için `start()` false dönünce rollback'i assert eden entegrasyon testi (alt sistemler için protokol-DI refactor gerekir).
+**Kalan küçük bypass'lar (bilinçli):** hot corner / Launchpad-Mission Control özel tuşları auth sırasında M3 denylist'inde değil (fare/özel-tuş geçişi gerekli); E5 fail-safe-to-unlocked tasarım gereği; D4/D5 tehdit modeli dışı.
 
 ---
 
@@ -139,18 +144,27 @@
 
 ## 4) CİHAZDA MANUEL DOĞRULAMA KONTROL LİSTESİ
 
-**Uygulanan düzeltmeler (M1/M2/M4) için:**
-- [ ] **A1 reprosu:** Kilitle → girişe dokun (.authenticating) → Cmd+Tab → **kalkana tıkla** → parola sayfası yeniden öne gelmeli (strand YOK).
-- [ ] **A5/M2:** .authenticating'de **⌃⌥⌘L** → temiz `.locked`'a dönmeli, tap yeniden yutmalı (yeni dokunuş auth açar).
+**M3 — KISITLI auth tap (EN ÖNEMLİ test, en riskli kalem):**
+- [ ] Kilitle → dokun (.authenticating) → **parolayı yaz** → kabul edilmeli (M3 düz yazıyı geçiriyor).
+- [ ] .authenticating'de **Cmd+Tab / Cmd+Space / ⌥⌘Esc / Cmd+`` ` `` / Ctrl+ok** → hepsi **etkisiz** olmalı.
+- [ ] Touch ID hâlâ açıyor; parola alanında ⌘A/⌘C/⌘V çalışıyor (yutulmamalı).
+
+**M1/M2/M4 — kurtarma ağı:**
+- [ ] **A1 reprosu:** Kilitle → dokun → (M3 Cmd+Tab'ı yutmalı; yine de kaçış olursa) **kalkana tıkla** → parola sayfası yeniden öne gelmeli (strand YOK).
+- [ ] **A5/M2:** .authenticating'de **⌃⌥⌘L** → temiz `.locked`'a dönmeli, tap yeniden yutmalı.
 - [ ] **B1/M4:** Auth sayfasını açık bırak, 60s bekle → otomatik `.locked`'a dönmeli.
-- [ ] Normal yol bozulmadı: dokun → Touch ID açıyor; parola fallback yazılabiliyor; iptal sonrası tekrar kilitleniyor.
-- [ ] Kalkana tıklama normal (.locked) durumda gereksiz yere auth açmıyor (tap tıkları yutmalı).
+- [ ] Kalkana tıklama normal (.locked) durumda gereksiz auth açmıyor (tap tıkları yutar).
+
+**M5/M6 — wake/sleep:**
+- [ ] **D1:** Kilitle → kapağı kapat / Apple menü > Uyku → uyandır → yaz/tıkla → giriş hâlâ engelli (veya auth tetikli); masaüstüne hiçbir şey ulaşmamalı.
+- [ ] **D2:** .authenticating'de uyku → uyandır → temiz `.locked` (tap armlı).
+
+**M7 — çoklu ekran (diff):**
+- [ ] **C1/C3:** Kilitliyken harici ekran tak/çıkar veya Sidecar toggle → titreşim yok, mevcut ekranlar hiç açığa çıkmıyor, yeni ekran kaplanıyor, saat sıfırlanmıyor.
 
 **Genel regresyon:**
 - [ ] SSH `killall LeaveMyMacAlone` hâlâ kurtarıyor.
-- [ ] Çoklu ekran kapanıyor; uyku (idle) engelleniyor; menü çubuğu saydamlık kaydırıcısı kalıcı.
-
-**M3 uygulanırsa (sonraki adım):** A2 listesindeki her kısayolu auth sırasında dene (hepsi etkisiz olmalı) + parola/Touch ID kabul ediliyor.
+- [ ] Çoklu ekran kapanıyor; uyku (idle) engelleniyor; menü çubuğu saydamlık kaydırıcısı kalıcı; iptal sonrası tekrar kilitleniyor.
 
 ---
 
