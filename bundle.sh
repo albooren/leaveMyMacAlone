@@ -26,6 +26,9 @@ cp "${BIN}" "${APP}/Contents/MacOS/${APP_NAME}"
 chmod +x "${APP}/Contents/MacOS/${APP_NAME}"
 cp "${ROOT}/Resources/Info.plist" "${APP}/Contents/Info.plist"
 
+# App icon.
+cp "${ROOT}/Resources/AppIcon.icns" "${APP}/Contents/Resources/AppIcon.icns"
+
 # Localizations: copy every .lproj (e.g. en.lproj) into the bundle so the .app's
 # main bundle resolves them. The Turkish development-language strings are the
 # keys, so Turkish needs no .lproj.
