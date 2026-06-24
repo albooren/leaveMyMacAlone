@@ -2,6 +2,26 @@ import AppKit
 import SwiftUI
 import LeaveMyMacAloneCore
 
+// Round icon button for the panel actions. `prominent` = filled white circle
+// with a dark glyph (primary action); otherwise a frosted circle with a white
+// glyph (secondary). Avoids the system accent (blue) to match the dark panel.
+private struct CircleIconButtonStyle: ButtonStyle {
+    let prominent: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 19, weight: .semibold))
+            .foregroundStyle(prominent ? AnyShapeStyle(.black) : AnyShapeStyle(.white))
+            .frame(width: 52, height: 52)
+            .background(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.ultraThinMaterial),
+                        in: Circle())
+            .overlay(Circle().strokeBorder(.white.opacity(prominent ? 0 : 0.25), lineWidth: 1))
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .opacity(configuration.isPressed ? 0.85 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
 struct SettingsView: View {
     @ObservedObject var store: AppSettingsStore
     let onLockNow: () -> Void
@@ -74,22 +94,22 @@ struct SettingsView: View {
 
             Divider()
 
-            // Actions: lock is the primary call to action; quit is secondary.
-            VStack(spacing: 9) {
+            // Actions: round icon buttons side by side — lock (primary, filled)
+            // and quit (secondary, frosted).
+            HStack(spacing: 20) {
                 Button(action: onLockNow) {
-                    Label("Şimdi Kilitle", systemImage: "lock.fill")
-                        .frame(maxWidth: .infinity)
+                    Image(systemName: "lock.fill")
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(CircleIconButtonStyle(prominent: true))
+                .help("Şimdi Kilitle")
 
                 Button(action: onQuit) {
-                    Label("Çıkış", systemImage: "power")
-                        .frame(maxWidth: .infinity)
+                    Image(systemName: "power")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
+                .buttonStyle(CircleIconButtonStyle(prominent: false))
+                .help("Çıkış")
             }
+            .frame(maxWidth: .infinity)
 
             // How to unlock, for discoverability.
             Text("Açmak için butona, Space veya Enter'a bas.")
