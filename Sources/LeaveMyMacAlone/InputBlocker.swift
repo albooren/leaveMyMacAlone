@@ -34,11 +34,10 @@ final class InputBlocker {
         CGPreflightListenEventAccess() && AXIsProcessTrusted()
     }
 
-    /// Trigger both system permission prompts (no-op if already granted).
-    static func requestPermissions() {
-        _ = ensureInputMonitoringPermission()
-        _ = ensureAccessibilityPermission(prompt: true)
-    }
+    /// Individual checks, used by the step-by-step permission onboarding so each
+    /// privilege can be requested and waited on in order.
+    static func hasAccessibilityPermission() -> Bool { AXIsProcessTrusted() }
+    static func hasInputMonitoringPermission() -> Bool { CGPreflightListenEventAccess() }
 
     @discardableResult
     static func ensureInputMonitoringPermission() -> Bool {

@@ -28,6 +28,8 @@ final class AppController {
     private let authTimeout: Duration = .seconds(60)
     // Retain power-notification tokens for the app's lifetime.
     private var powerObservers: [NSObjectProtocol] = []
+    // Drives the step-by-step first-run permission onboarding.
+    private var onboardingTask: Task<Void, Never>?
 
     // Throttle the activation-recovery re-present (see reclaimForeground). The
     // LocalAuthentication agent is excluded by two guards, so this never fires in
@@ -74,8 +76,7 @@ final class AppController {
         if InputBlocker.hasRequiredPermissions() {
             lock()
         } else {
-            InputBlocker.requestPermissions()
-            showPermissionsAlert()
+            startPermissionOnboarding()
         }
     }
 
@@ -363,24 +364,89 @@ final class AppController {
         }
     }
 
-    private func showPermissionsAlert() {
+    // MARK: - First-run permission onboarding
+
+    /// Walk the user through the two required privileges ONE AT A TIME, in order:
+    /// Accessibility, then Input Monitoring. Each step opens its own Settings
+    /// pane and waits until that privilege is granted before moving to the next.
+    private func startPermissionOnboarding() {
+        onboardingTask?.cancel()
+        onboardingTask = Task { @MainActor in
+            // Step 1 / 2 — Accessibility.
+            if !InputBlocker.hasAccessibilityPermission() {
+                _ = InputBlocker.ensureAccessibilityPermission(prompt: false) // register in the list
+                guard self.promptPermissionStep(
+                    index: 1,
+                    name: "Erişilebilirlik",
+                    paneURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+                ) else { return }
+                guard await self.waitForGrant({ InputBlocker.hasAccessibilityPermission() }) else {
+                    self.showOnboardingTimeoutAlert(name: "Erişilebilirlik"); return
+                }
+            }
+            // Step 2 / 2 — Input Monitoring.
+            if !InputBlocker.hasInputMonitoringPermission() {
+                _ = InputBlocker.ensureInputMonitoringPermission()  // register + system prompt
+                guard self.promptPermissionStep(
+                    index: 2,
+                    name: "Giriş İzleme",
+                    paneURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+                ) else { return }
+                guard await self.waitForGrant({ InputBlocker.hasInputMonitoringPermission() }) else {
+                    self.showOnboardingTimeoutAlert(name: "Giriş İzleme"); return
+                }
+            }
+            self.showOnboardingCompleteAlert()
+        }
+    }
+
+    /// Guided alert for one permission step; opens that privilege's Settings pane.
+    /// Returns false if the user cancels.
+    private func promptPermissionStep(index: Int, name: String, paneURL: String) -> Bool {
         let alert = NSAlert()
-        alert.messageText = "İzin gerekli"
+        alert.messageText = "İzin \(index)/2: \(name)"
         alert.informativeText = """
-        LeaveMyMacAlone girişi engelleyebilmek için iki izne ihtiyaç duyar. \
-        Sistem Ayarları > Gizlilik ve Güvenlik bölümünden:
-        • Erişilebilirlik (Accessibility)
-        • Giriş İzleme (Input Monitoring)
-        izinlerini ver. Sonra menü çubuğundaki kalkan simgesinden \
-        "Şimdi Kilitle" ile kilitle.
+        LeaveMyMacAlone girişi engelleyebilmek için \(name) iznine ihtiyaç duyar.
+
+        1. "\(name) Ayarlarını Aç"a bas.
+        2. Açılan listede LeaveMyMacAlone'u bul ve anahtarını aç.
+        3. İzni verince bu adım kendiliğinden tamamlanıp sıradakine geçilir.
         """
-        alert.addButton(withTitle: "Sistem Ayarları'nı Aç")
+        alert.addButton(withTitle: "\(name) Ayarlarını Aç")
+        alert.addButton(withTitle: "İptal")
+        NSApp.activate()
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        if let url = URL(string: paneURL) { NSWorkspace.shared.open(url) }
+        return true
+    }
+
+    /// Poll up to ~5 minutes for a privilege to be granted. Returns whether it
+    /// was granted within the window.
+    private func waitForGrant(_ granted: @escaping () -> Bool) async -> Bool {
+        for _ in 0..<300 {
+            if granted() { return true }
+            try? await Task.sleep(for: .seconds(1))
+            if Task.isCancelled { return false }
+        }
+        return granted()
+    }
+
+    private func showOnboardingCompleteAlert() {
+        let alert = NSAlert()
+        alert.messageText = "İzinler verildi"
+        alert.informativeText = "Artık menü çubuğundaki kalkan simgesinden \"Şimdi Kilitle\" ile kilitleyebilirsin."
         alert.addButton(withTitle: "Tamam")
         NSApp.activate()
-        if alert.runModal() == .alertFirstButtonReturn,
-           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
-        }
+        alert.runModal()
+    }
+
+    private func showOnboardingTimeoutAlert(name: String) {
+        let alert = NSAlert()
+        alert.messageText = "\(name) izni doğrulanamadı"
+        alert.informativeText = "İzni verdiysen LeaveMyMacAlone'u kapatıp yeniden açmayı dene, ardından menüden kilitle."
+        alert.addButton(withTitle: "Tamam")
+        NSApp.activate()
+        alert.runModal()
     }
 
     private func showTapFailureAlert() {
