@@ -32,7 +32,7 @@ struct SettingsView: View {
             // Transparency control with live value and end markers.
             VStack(alignment: .leading, spacing: 9) {
                 HStack {
-                    Text("Saydamlık")
+                    Text("Koyuluk")
                         .font(.subheadline.weight(.semibold))
                     Spacer()
                     Text("\(opacityPercent)%")
@@ -56,17 +56,21 @@ struct SettingsView: View {
 
             Divider()
 
-            // Whether to keep the Mac awake while it is locked.
-            Toggle(isOn: $store.preventSleepWhileLocked) {
+            // Whether to keep the Mac awake while it is locked. Lay it out as a
+            // settings row: label on the leading edge, switch pinned trailing.
+            HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Kilitliyken uykuyu engelle")
                         .font(.subheadline.weight(.semibold))
-                    Text("Kapalıyken Mac kilitliyken uyku moduna geçebilir.")
+                    Text("Kapatırsan Mac kilitliyken uykuya geçebilir.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: 0)
+                Toggle("", isOn: $store.preventSleepWhileLocked)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
-            .toggleStyle(.switch)
 
             Divider()
 
@@ -88,7 +92,7 @@ struct SettingsView: View {
             }
 
             // How to unlock, for discoverability.
-            Text("Kilitliyken: butona, Space veya Enter'a bas.")
+            Text("Açmak için butona, Space veya Enter'a bas.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .center)

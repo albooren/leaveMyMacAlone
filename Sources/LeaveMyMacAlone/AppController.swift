@@ -457,10 +457,9 @@ final class AppController {
         let alert = NSAlert()
         alert.messageText = "Giriş engelleme kurulamadı"
         alert.informativeText = """
-        Giriş engelleme (event tap) etkinleştirilemedi, bu yüzden kilit \
-        kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik bölümünden \
-        Erişilebilirlik ve Giriş İzleme izinlerinin verildiğinden emin ol, \
-        sonra tekrar kilitle.
+        Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. \
+        Sistem Ayarları > Gizlilik ve Güvenlik bölümünden Erişilebilirlik ve \
+        Giriş İzleme izinlerinin verildiğinden emin ol, sonra tekrar kilitle.
         """
         alert.addButton(withTitle: "Tamam")
         NSApp.activate()
