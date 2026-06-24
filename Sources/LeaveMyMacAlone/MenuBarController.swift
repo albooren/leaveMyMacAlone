@@ -103,6 +103,7 @@ final class MenuBarController {
 
     private let store: AppSettingsStore
     private let statusItem: NSStatusItem
+    private let preview: PreviewOverlayController
     private var panel: KeyablePanel?
     private var globalClickMonitor: Any?
     private var localKeyMonitor: Any?
@@ -110,6 +111,7 @@ final class MenuBarController {
     init(store: AppSettingsStore) {
         self.store = store
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        self.preview = PreviewOverlayController(store: store)
         configureStatusButton()
     }
 
@@ -170,6 +172,7 @@ final class MenuBarController {
         button.highlight(true)
         self.panel = panel
         installDismissMonitors()
+        preview.start()          // live dim preview while the panel is open
     }
 
     private func installDismissMonitors() {
@@ -202,6 +205,7 @@ final class MenuBarController {
     }
 
     private func closePanel() {
+        preview.stop()           // revert the screen to normal
         if let monitor = globalClickMonitor { NSEvent.removeMonitor(monitor); globalClickMonitor = nil }
         if let monitor = localKeyMonitor { NSEvent.removeMonitor(monitor); localKeyMonitor = nil }
         statusItem.button?.highlight(false)
