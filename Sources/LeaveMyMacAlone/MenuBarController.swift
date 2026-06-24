@@ -56,6 +56,20 @@ struct SettingsView: View {
 
             Divider()
 
+            // Whether to keep the Mac awake while it is locked.
+            Toggle(isOn: $store.preventSleepWhileLocked) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Kilitliyken uykuyu engelle")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Kapalıyken Mac kilitliyken uyku moduna geçebilir.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .toggleStyle(.switch)
+
+            Divider()
+
             // Actions: lock is the primary call to action; quit is secondary.
             VStack(spacing: 9) {
                 Button(action: onLockNow) {

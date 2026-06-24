@@ -82,7 +82,11 @@ final class AppController {
 
     func lock() {
         guard machine.lock() else { return } // ignore if not unlocked
-        sleepGuard.begin()
+        // Keep the Mac awake while locked only if the user wants it (default on);
+        // sleepGuard.end() on teardown is a no-op if we never began.
+        if store.preventSleepWhileLocked {
+            sleepGuard.begin()
+        }
         // onUnlock = the "Kilidi Aç" button → begin auth. onInteract = a click
         // anywhere else on the shield → flash "still locked" while locked, or
         // re-present a buried auth sheet while authenticating (tap-independent
