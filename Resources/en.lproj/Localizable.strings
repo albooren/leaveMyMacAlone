@@ -17,9 +17,8 @@
 
 /* --- Permission onboarding & alerts (AppKit) --- */
 "Erişilebilirlik" = "Accessibility";
-"Giriş İzleme" = "Input Monitoring";
-"İzin %1$d/2: %2$@" = "Permission %1$d/2: %2$@";
-"LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince bu adım otomatik tamamlanıp sıradakine geçilir." = "LeaveMyMacAlone needs the %@ permission to block input. Click the button below, find LeaveMyMacAlone in the list, and turn its switch on. Once granted, this step completes automatically and continues.";
+"%@ izni gerekli" = "%@ permission required";
+"LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır." = "LeaveMyMacAlone needs the %@ permission to block input. Click the button below, find LeaveMyMacAlone in the list, and turn its switch on. It completes automatically once granted.";
 "%@ Ayarlarını Aç" = "Open %@ Settings";
 "İptal" = "Cancel";
 "İzinler verildi" = "Permissions granted";
@@ -28,4 +27,4 @@
 "%@ izni doğrulanamadı" = "Couldn’t verify the %@ permission";
 "İzni verdiysen LeaveMyMacAlone'u kapatıp yeniden açmayı dene, sonra menüden kilitle." = "If you granted it, quit and reopen LeaveMyMacAlone, then lock from the menu.";
 "Giriş engelleme kurulamadı" = "Couldn’t enable input blocking";
-"Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik bölümünden Erişilebilirlik ve Giriş İzleme izinlerinin verildiğinden emin ol, sonra tekrar kilitle." = "Input blocking couldn’t be enabled, so the lock was removed. In System Settings > Privacy & Security, make sure Accessibility and Input Monitoring are granted, then lock again.";
+"Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik > Erişilebilirlik bölümünden LeaveMyMacAlone'a izin verildiğinden emin ol, sonra tekrar kilitle." = "Input blocking couldn’t be enabled, so the lock was removed. In System Settings > Privacy & Security > Accessibility, make sure LeaveMyMacAlone is allowed, then lock again.";

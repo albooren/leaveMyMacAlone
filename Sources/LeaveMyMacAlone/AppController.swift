@@ -376,28 +376,16 @@ final class AppController {
     private func startPermissionOnboarding() {
         onboardingTask?.cancel()
         onboardingTask = Task { @MainActor in
-            // Step 1 / 2 — Accessibility.
+            // The active keyboard tap needs only Accessibility (it supersedes
+            // Input Monitoring), so this is a single step.
             if !InputBlocker.hasAccessibilityPermission() {
                 _ = InputBlocker.ensureAccessibilityPermission(prompt: false) // register in the list
                 guard self.promptPermissionStep(
-                    index: 1,
                     name: "Erişilebilirlik",
                     paneURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
                 ) else { return }
                 guard await self.waitForGrant({ InputBlocker.hasAccessibilityPermission() }) else {
                     self.showOnboardingTimeoutAlert(name: "Erişilebilirlik"); return
-                }
-            }
-            // Step 2 / 2 — Input Monitoring.
-            if !InputBlocker.hasInputMonitoringPermission() {
-                _ = InputBlocker.ensureInputMonitoringPermission()  // register + system prompt
-                guard self.promptPermissionStep(
-                    index: 2,
-                    name: "Giriş İzleme",
-                    paneURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
-                ) else { return }
-                guard await self.waitForGrant({ InputBlocker.hasInputMonitoringPermission() }) else {
-                    self.showOnboardingTimeoutAlert(name: "Giriş İzleme"); return
                 }
             }
             self.showOnboardingCompleteAlert()
@@ -406,15 +394,15 @@ final class AppController {
 
     /// Guided alert for one permission step; opens that privilege's Settings pane.
     /// Returns false if the user cancels.
-    private func promptPermissionStep(index: Int, name: String, paneURL: String) -> Bool {
+    private func promptPermissionStep(name: String, paneURL: String) -> Bool {
         let localizedName = NSLocalizedString(name, comment: "Permission name")
         let alert = NSAlert()
         alert.messageText = String(
-            format: NSLocalizedString("İzin %1$d/2: %2$@", comment: "Permission step title"),
-            index, localizedName)
+            format: NSLocalizedString("%@ izni gerekli", comment: "Permission title"),
+            localizedName)
         alert.informativeText = String(
             format: NSLocalizedString(
-                "LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince bu adım otomatik tamamlanıp sıradakine geçilir.",
+                "LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır.",
                 comment: "Permission step body"),
             localizedName)
         alert.addButton(withTitle: String(
@@ -467,7 +455,7 @@ final class AppController {
         let alert = NSAlert()
         alert.messageText = NSLocalizedString("Giriş engelleme kurulamadı", comment: "Tap failure title")
         alert.informativeText = NSLocalizedString(
-            "Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik bölümünden Erişilebilirlik ve Giriş İzleme izinlerinin verildiğinden emin ol, sonra tekrar kilitle.",
+            "Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik > Erişilebilirlik bölümünden LeaveMyMacAlone'a izin verildiğinden emin ol, sonra tekrar kilitle.",
             comment: "Tap failure body")
         alert.addButton(withTitle: NSLocalizedString("Tamam", comment: "OK button"))
         NSApp.activate()

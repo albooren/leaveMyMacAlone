@@ -11,10 +11,12 @@ import ApplicationServices
 /// passes plain typing to the password screen and swallows only escape
 /// shortcuts.
 ///
-/// PERMISSIONS: a consuming tap is gated by Input Monitoring (TCC ListenEvent)
-/// and may additionally need Accessibility. We request both but never treat a
-/// preflight as a hard gate — the authoritative test is whether the tap is
-/// actually live (CGEvent.tapIsEnabled).
+/// PERMISSIONS: an ACTIVE (.defaultTap) keyboard tap that can modify/consume
+/// events is gated by Accessibility (kTCCServiceAccessibility). Accessibility
+/// supersedes Input Monitoring for active taps — when Accessibility is granted
+/// the Input Monitoring prompt doesn't even appear — so a separate Input
+/// Monitoring grant is NOT required. We never treat a preflight as a hard gate;
+/// the authoritative test is whether the tap is actually live (tapIsEnabled).
 final class InputBlocker {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -29,21 +31,13 @@ final class InputBlocker {
 
     // MARK: - Permissions
 
-    /// True only if BOTH privileges that a consuming tap can need are present.
+    /// The only privilege an active keyboard tap needs: Accessibility.
     static func hasRequiredPermissions() -> Bool {
-        CGPreflightListenEventAccess() && AXIsProcessTrusted()
+        AXIsProcessTrusted()
     }
 
-    /// Individual checks, used by the step-by-step permission onboarding so each
-    /// privilege can be requested and waited on in order.
+    /// Alias used by the permission onboarding.
     static func hasAccessibilityPermission() -> Bool { AXIsProcessTrusted() }
-    static func hasInputMonitoringPermission() -> Bool { CGPreflightListenEventAccess() }
-
-    @discardableResult
-    static func ensureInputMonitoringPermission() -> Bool {
-        if CGPreflightListenEventAccess() { return true }
-        return CGRequestListenEventAccess()
-    }
 
     @discardableResult
     static func ensureAccessibilityPermission(prompt: Bool = true) -> Bool {
