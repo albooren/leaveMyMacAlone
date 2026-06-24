@@ -1,66 +1,77 @@
-# Leave My Mac Alone
+# 🛡️ Leave My Mac Alone
 
-Sen masandan uzaklaşırken Mac arkada çalışmaya devam etsin, ama kimse
-klavye/fareye dokunup müdahale edemesin. Kilitleyince ekran uyumaz, üzerine
-ayarlanabilir koyulukta bir kilit katmanı düşer; açmak için Touch ID / parola
-gerekir.
+> Masandan kalktığında Mac'in çalışmaya devam etsin, ama kimse klavye/fareye dokunamasın.
 
-## Gereksinimler
-- macOS 14+ (macOS 26 üzerinde geliştirildi/doğrulandı), Apple Silicon
-- Yalnızca **Erişilebilirlik (Accessibility)** izni (giriş engelleme için)
+![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-black?logo=apple)
+![License](https://img.shields.io/badge/license-MIT-blue)
+[![Latest release](https://img.shields.io/github/v/release/albooren/leaveMyMacAlone?label=indir&color=success)](https://github.com/albooren/leaveMyMacAlone/releases/latest)
 
-## Kurulum (kullanıcı)
-1. `LeaveMyMacAlone.dmg`'yi indir, aç, uygulamayı **Applications**'a sürükle.
-2. Uygulamayı çalıştır. Menü çubuğunda kalkan simgesi belirir (otomatik kilitlenmez).
-3. İlk çalıştırmada **Erişilebilirlik izni** istenir: "Erişilebilirlik Ayarlarını
-   Aç" → listede `LeaveMyMacAlone`'u aç. (Tek izin yeter; Giriş İzleme'ye gerek yok.)
+LeaveMyMacAlone, menü çubuğunda yaşayan küçük bir macOS aracı. Kilitlediğinde
+ekran uyumaz; üzerine ayarlanabilir koyulukta bir kilit katmanı düşer ve
+klavye/fare girişleri engellenir. Açmak için **Touch ID veya parola** gerekir —
+arkadaki işin (indirme, render, build…) kesintisiz sürer.
 
-## Kullanım
-- **Kilitle:** menü çubuğu simgesi > **Şimdi Kilitle**, veya kısayol **⌃⌥⌘L**.
-- **Aç:** kilit ekranındaki **Kilidi Aç** butonu, ya da **Space / Enter** → Touch ID
-  (veya parola).
-- **Koyuluk:** menü çubuğu simgesi > kaydırıcı (kilitli değilken ayarla; değer
-  kalıcıdır). Sürüklerken canlı önizleme görünür.
-- **Kilitliyken uyku:** menü çubuğu > "Kilitliyken uykuyu engelle" anahtarı.
-- **Çıkış:** menü çubuğu simgesi > Çıkış.
+## ✨ Özellikler
+- 🔒 **Tek tuşla kilit** — menüden "Şimdi Kilitle" veya **⌃⌥⌘L** kısayolu.
+- 👆 **Touch ID / parola** ile aç (Kilidi Aç butonu, ya da Space/Enter).
+- 🌗 **Ayarlanabilir koyuluk** — hafif tülden tam karartmaya; sürüklerken canlı önizleme.
+- ☕ **Uyumaz** — kilitliyken ekranı/sistemi uyanık tutar (isteğe bağlı kapatılır).
+- 🪶 **Tek izin** — yalnızca Erişilebilirlik (Giriş İzleme gerekmez).
+- 🧰 **Menü çubuğu uygulaması** — Dock'u kirletmez, açılışta otomatik kilitlemez.
+- 🆘 **SSH kill switch** — donarsa uzaktan `killall` ile kurtarma.
+- 🌍 Türkçe + İngilizce arayüz (sistem diline göre).
 
-## Donarsa kurtarma (SSH kill switch)
+## 📦 Kurulum
+1. [Releases](https://github.com/albooren/leaveMyMacAlone/releases/latest)'tan
+   **`LeaveMyMacAlone.dmg`**'yi indir, aç, uygulamayı **Applications**'a sürükle.
+2. Çalıştır → menü çubuğunda kalkan simgesi belirir.
+3. İlk açılışta **Erişilebilirlik izni** istenir: "Erişilebilirlik Ayarlarını Aç"
+   → listede `LeaveMyMacAlone`'u aç. (Notarize'lı olduğu için Gatekeeper engellemez.)
+
+## 🎛️ Kullanım
+| Eylem | Nasıl |
+|---|---|
+| **Kilitle** | Menü > Şimdi Kilitle · veya **⌃⌥⌘L** |
+| **Aç** | Kilidi Aç butonu / **Space** / **Enter** → Touch ID veya parola |
+| **Koyuluk** | Menü > kaydırıcı (açıkken ayarla; kalıcı) |
+| **Kilitliyken uyku** | Menü > "Kilitliyken uykuyu engelle" anahtarı |
+| **Çıkış** | Menü > Çıkış |
+
+## 🆘 Donarsa kurtarma
 Başka bir cihazdan:
 ```bash
 ssh <kullanıcı>@<mac-ip> 'killall LeaveMyMacAlone'
 ```
-Süreç ölünce kiosk modu ve giriş engeli anında kalkar. (Bunun için hedef Mac'te
-Sistem Ayarları > Genel > Paylaşım > **Uzaktan Oturum Açma** açık olmalı.)
+(Hedef Mac'te Sistem Ayarları > Genel > Paylaşım > **Uzaktan Oturum Açma** açık olmalı.)
 
-## Geliştirme
+## 🛠️ Geliştirme
 ```bash
-swift build && swift test     # derle + test
+swift build && swift test     # derle + test (22 test)
 ./bundle.sh                   # yerel .app (self-signed dev imzası)
 ```
-Yerel imza için tek seferlik bir `LeaveMyMacAlone Dev` kod imzalama sertifikası
-oluşturulursa (`bundle.sh` otomatik bulur), izinler yeniden derlemelerde kalıcı
-olur; aksi halde ad-hoc imzada her derlemede TCC izni sıfırlanır.
+Tek seferlik bir `LeaveMyMacAlone Dev` kod imzalama sertifikası oluşturursan
+(`bundle.sh` otomatik bulur), Erişilebilirlik izni yeniden derlemelerde kalıcı olur.
 
-## Yayın (notarized .dmg)
-Ayrıntı: `docs/superpowers/specs/2026-06-24-macos-release-design.md`. Özet:
+## 🚀 Yayın (notarized .dmg)
+Ayrıntı: [`docs/superpowers/specs/2026-06-24-macos-release-design.md`](docs/superpowers/specs/2026-06-24-macos-release-design.md).
 ```bash
 export DEVELOPER_ID="Developer ID Application: Adın (TEAMID)"
 export NOTARY_PROFILE="lmma-notary"   # önceden: xcrun notarytool store-credentials
-./release.sh                          # imzalar, dmg yapar, notarize + staple eder
+./release.sh                          # imzalar → dmg → notarize → staple
 ```
 
-## Gizlilik
-Ağ erişimi yok, veri toplama yok. Touch ID/parola için LocalAuthentication,
-uyku engelleme için IOKit, giriş engelleme için CoreGraphics event tap — hepsi
-yalnız yerel.
-
-## Dürüst sınırlamalar
-- Çıplak laptopta **kapağı kapatmak** yine uyutur (donanımsal clamshell).
-  Kapağı açık tut veya harici ekran + güç bağla.
+## ⚠️ Dürüst sınırlamalar
+- Çıplak laptopta **kapağı kapatmak** yine uyutur (donanımsal clamshell). Kapağı
+  açık tut veya harici ekran + güç bağla.
 - **Güç tuşuna basılı tutmak** donanımdan kapatır (yazılım engelleyemez).
-- Sandbox dışıdır (tüketen event tap için gerekir), bu yüzden **Mac App Store'da
-  dağıtılamaz**; doğrudan notarized indirme ile dağıtılır.
-- Bu, şakacı bir iş arkadaşını durdurur; güvenlik-sınıfı bir kilit değildir.
+- Sandbox dışı olduğu için **Mac App Store'da değildir**; doğrudan notarized
+  indirme ile dağıtılır.
+- Şakacı bir iş arkadaşını durdurur; askeri sınıf bir kilit değildir.
 
-## Lisans
-MIT — bkz. `LICENSE`.
+## 🔐 Gizlilik
+Ağ erişimi yok, veri toplama yok. Touch ID/parola için LocalAuthentication, uyku
+engelleme için IOKit, giriş engelleme için CoreGraphics event tap — hepsi yalnız
+yerel.
+
+## 📄 Lisans
+[MIT](LICENSE) © 2026 Alperen Kişi
