@@ -11,7 +11,11 @@ final class TransparencyTests: XCTestCase {
     }
 
     func testClampAboveRangeReturnsUpperBound() {
-        XCTAssertEqual(Transparency.clamp(2.0), 0.85)
+        XCTAssertEqual(Transparency.clamp(2.0), 1.0)
+    }
+
+    func testFullyOpaqueIsAllowed() {
+        XCTAssertEqual(Transparency.clamp(1.0), 1.0)
     }
 
     func testDefaultOpacityIsWithinRange() {
