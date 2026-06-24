@@ -6,6 +6,8 @@ struct SettingsView: View {
     @ObservedObject var store: AppSettingsStore
     let onLockNow: () -> Void
     let onQuit: () -> Void
+    // true while the user is dragging the opacity slider; drives the live preview.
+    let onSliderEditing: (Bool) -> Void
 
     private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
 
@@ -41,7 +43,8 @@ struct SettingsView: View {
                     Image(systemName: "sun.min.fill")
                         .imageScale(.small)
                         .foregroundStyle(.secondary)
-                    Slider(value: $store.overlayOpacity, in: Transparency.range)
+                    Slider(value: $store.overlayOpacity, in: Transparency.range,
+                           onEditingChanged: onSliderEditing)
                     Image(systemName: "moon.fill")
                         .imageScale(.small)
                         .foregroundStyle(.secondary)
@@ -135,7 +138,11 @@ final class MenuBarController {
         let root = SettingsView(
             store: store,
             onLockNow: { [weak self] in self?.closePanel(); self?.onLockNow() },
-            onQuit: { [weak self] in self?.closePanel(); self?.onQuit() }
+            onQuit: { [weak self] in self?.closePanel(); self?.onQuit() },
+            onSliderEditing: { [weak self] editing in
+                // Show the live preview only while the slider is being dragged.
+                if editing { self?.preview.start() } else { self?.preview.stop() }
+            }
         )
         let hosting = FirstMouseHostingView(rootView: root)
         hosting.layoutSubtreeIfNeeded()
@@ -172,7 +179,9 @@ final class MenuBarController {
         button.highlight(true)
         self.panel = panel
         installDismissMonitors()
-        preview.start()          // live dim preview while the panel is open
+        // Preview is NOT shown on open; it appears only while the slider is
+        // dragged (see SettingsView onSliderEditing). closePanel() stops it as a
+        // safety net if the panel closes mid-drag.
     }
 
     private func installDismissMonitors() {
