@@ -107,7 +107,7 @@ struct OverlayView: View {
                         }
                     }
 
-                Text(model.unlocking ? "Açılıyor…" : "Kilitli")
+                Text(statusText)
                     .font(.title3.weight(.medium))
 
                 TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -136,6 +136,12 @@ struct OverlayView: View {
         }
         // Non-zero hit area so the window registers clicks at any opacity.
         .contentShape(Rectangle())
+    }
+
+    // Ternary of two string literals would be inferred as a (verbatim, non-
+    // localized) String; typing it as LocalizedStringKey keeps it localizable.
+    private var statusText: LocalizedStringKey {
+        model.unlocking ? "Açılıyor…" : "Kilitli"
     }
 
     // 0.85 settling in on lock · 1.0 at rest · 1.12 lifting away on unlock.

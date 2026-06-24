@@ -407,17 +407,20 @@ final class AppController {
     /// Guided alert for one permission step; opens that privilege's Settings pane.
     /// Returns false if the user cancels.
     private func promptPermissionStep(index: Int, name: String, paneURL: String) -> Bool {
+        let localizedName = NSLocalizedString(name, comment: "Permission name")
         let alert = NSAlert()
-        alert.messageText = "İzin \(index)/2: \(name)"
-        alert.informativeText = """
-        LeaveMyMacAlone girişi engelleyebilmek için \(name) iznine ihtiyaç duyar.
-
-        1. "\(name) Ayarlarını Aç"a bas.
-        2. Açılan listede LeaveMyMacAlone'u bul ve anahtarını aç.
-        3. İzni verince bu adım kendiliğinden tamamlanıp sıradakine geçilir.
-        """
-        alert.addButton(withTitle: "\(name) Ayarlarını Aç")
-        alert.addButton(withTitle: "İptal")
+        alert.messageText = String(
+            format: NSLocalizedString("İzin %1$d/2: %2$@", comment: "Permission step title"),
+            index, localizedName)
+        alert.informativeText = String(
+            format: NSLocalizedString(
+                "LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince bu adım otomatik tamamlanıp sıradakine geçilir.",
+                comment: "Permission step body"),
+            localizedName)
+        alert.addButton(withTitle: String(
+            format: NSLocalizedString("%@ Ayarlarını Aç", comment: "Open settings button"),
+            localizedName))
+        alert.addButton(withTitle: NSLocalizedString("İptal", comment: "Cancel button"))
         NSApp.activate()
         guard alert.runModal() == .alertFirstButtonReturn else { return false }
         if let url = URL(string: paneURL) { NSWorkspace.shared.open(url) }
@@ -437,31 +440,36 @@ final class AppController {
 
     private func showOnboardingCompleteAlert() {
         let alert = NSAlert()
-        alert.messageText = "İzinler verildi"
-        alert.informativeText = "Artık menü çubuğundaki kalkan simgesinden \"Şimdi Kilitle\" ile kilitleyebilirsin."
-        alert.addButton(withTitle: "Tamam")
+        alert.messageText = NSLocalizedString("İzinler verildi", comment: "Onboarding complete title")
+        alert.informativeText = NSLocalizedString(
+            "Artık menü çubuğundaki kalkan simgesinden kilitleyebilirsin.",
+            comment: "Onboarding complete body")
+        alert.addButton(withTitle: NSLocalizedString("Tamam", comment: "OK button"))
         NSApp.activate()
         alert.runModal()
     }
 
     private func showOnboardingTimeoutAlert(name: String) {
+        let localizedName = NSLocalizedString(name, comment: "Permission name")
         let alert = NSAlert()
-        alert.messageText = "\(name) izni doğrulanamadı"
-        alert.informativeText = "İzni verdiysen LeaveMyMacAlone'u kapatıp yeniden açmayı dene, ardından menüden kilitle."
-        alert.addButton(withTitle: "Tamam")
+        alert.messageText = String(
+            format: NSLocalizedString("%@ izni doğrulanamadı", comment: "Permission timeout title"),
+            localizedName)
+        alert.informativeText = NSLocalizedString(
+            "İzni verdiysen LeaveMyMacAlone'u kapatıp yeniden açmayı dene, sonra menüden kilitle.",
+            comment: "Permission timeout body")
+        alert.addButton(withTitle: NSLocalizedString("Tamam", comment: "OK button"))
         NSApp.activate()
         alert.runModal()
     }
 
     private func showTapFailureAlert() {
         let alert = NSAlert()
-        alert.messageText = "Giriş engelleme kurulamadı"
-        alert.informativeText = """
-        Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. \
-        Sistem Ayarları > Gizlilik ve Güvenlik bölümünden Erişilebilirlik ve \
-        Giriş İzleme izinlerinin verildiğinden emin ol, sonra tekrar kilitle.
-        """
-        alert.addButton(withTitle: "Tamam")
+        alert.messageText = NSLocalizedString("Giriş engelleme kurulamadı", comment: "Tap failure title")
+        alert.informativeText = NSLocalizedString(
+            "Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik bölümünden Erişilebilirlik ve Giriş İzleme izinlerinin verildiğinden emin ol, sonra tekrar kilitle.",
+            comment: "Tap failure body")
+        alert.addButton(withTitle: NSLocalizedString("Tamam", comment: "OK button"))
         NSApp.activate()
         alert.runModal()
     }
