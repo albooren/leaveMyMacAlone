@@ -26,8 +26,13 @@ background (downloads, renders, builds…) keeps going uninterrupted.
    [Releases](https://github.com/albooren/leaveMyMacAlone/releases/latest), open it,
    and drag the app to **Applications**.
 2. Launch it → a shield icon appears in the menu bar.
-3. On first launch it asks for **Accessibility**: click "Open Accessibility Settings"
-   → turn on `LeaveMyMacAlone` in the list. (It's notarized, so Gatekeeper won't block it.)
+3. **First launch:** the current `v1.0.0` build is Developer ID-signed but **not yet
+   notarized** (Apple's notary service is backlogged), so Gatekeeper may say the developer
+   "cannot be verified." **Right-click the app → Open → Open** — only needed the first time.
+   A notarized build that opens with a normal double-click will replace the download as soon
+   as Apple finishes processing.
+4. It then asks for **Accessibility**: click "Open Accessibility Settings"
+   → turn on `LeaveMyMacAlone` in the list.
 
 ## 🎛️ Usage
 | Action | How |
@@ -83,7 +88,7 @@ it automatically) and the Accessibility grant survives rebuilds.
   the lid open, or attach an external display + power.
 - **Holding the power button** shuts it down at the hardware level (software can't block it).
 - It's non-sandboxed, so it **can't be on the Mac App Store**; it ships as a directly
-  notarized download.
+  distributed Developer ID-signed download (notarized once Apple's notary service clears it).
 - It stops a prankster co-worker; it is not a military-grade lock.
 
 ## 🔐 Privacy
