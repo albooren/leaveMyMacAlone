@@ -1,5 +1,7 @@
 import AppKit
+import AVFoundation
 import SwiftUI
+import UserNotifications
 import LeaveMyMacAloneCore
 
 // Round icon button for the panel actions. `prominent` = filled white circle
@@ -28,6 +30,10 @@ struct SettingsView: View {
     let onQuit: () -> Void
     // true while the user is dragging the opacity slider; drives the live preview.
     let onSliderEditing: (Bool) -> Void
+    // Called when the user turns the intruder-capture toggle ON (prime perms).
+    let onCaptureIntruderEnabled: () -> Void
+    // Open the captured-photos folder in Finder.
+    let onOpenIntruderPhotos: () -> Void
 
     private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
 
@@ -86,6 +92,33 @@ struct SettingsView: View {
                 Toggle("", isOn: $store.preventSleepWhileLocked)
                     .labelsHidden()
                     .toggleStyle(.switch)
+            }
+
+            Divider()
+
+            // Intruder capture: toggle + (when on) a shortcut to the photos folder.
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("İzinsiz girişte fotoğraf çek")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Kilidi açmaya çalışan kişinin ön kameradan fotoğrafını çeker.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Toggle("", isOn: $store.captureIntruderPhoto)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                if store.captureIntruderPhoto {
+                    Button("İzinsiz giriş fotoğraflarını aç", action: onOpenIntruderPhotos)
+                        .buttonStyle(.link)
+                        .font(.caption)
+                }
+            }
+            .onChange(of: store.captureIntruderPhoto) { _, newValue in
+                if newValue { onCaptureIntruderEnabled() }
             }
 
             Divider()
@@ -152,6 +185,14 @@ final class MenuBarController {
         configureStatusButton()
     }
 
+    /// When the user enables intruder capture, request Camera + Notification
+    /// permission now (a calm moment) so the prompts never appear mid-intrusion.
+    private func primeIntruderPermissions() {
+        AVCaptureDevice.requestAccess(for: .video) { _ in }
+        UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
     private func configureStatusButton() {
         guard let button = statusItem.button else { return }
         button.image = NSImage(systemSymbolName: "lock.shield",
@@ -176,7 +217,9 @@ final class MenuBarController {
             onSliderEditing: { [weak self] editing in
                 // Show the live preview only while the slider is being dragged.
                 if editing { self?.preview.start() } else { self?.preview.stop() }
-            }
+            },
+            onCaptureIntruderEnabled: { [weak self] in self?.primeIntruderPermissions() },
+            onOpenIntruderPhotos: { IntruderCapture.openPhotosFolder() }
         )
         let hosting = FirstMouseHostingView(rootView: root)
         hosting.layoutSubtreeIfNeeded()

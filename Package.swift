@@ -18,7 +18,9 @@ let package = Package(
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("LocalAuthentication"),
                 .linkedFramework("IOKit"),
-                .linkedFramework("Carbon")
+                .linkedFramework("Carbon"),
+                .linkedFramework("AVFoundation"),
+                .linkedFramework("UserNotifications")
             ]
         ),
         .testTarget(
