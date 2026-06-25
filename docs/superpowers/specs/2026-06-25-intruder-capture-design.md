@@ -119,34 +119,56 @@ return true
 Follows the existing pattern: `AppController` coordinates subsystems; each unit is
 single-purpose and lives in its own file.
 
-- **`IntruderCapture` (new)** — owns the per-session policy (counter, grace,
-  cooldown, enabled check) and orchestrates a capture + file write + unlock
-  notification bookkeeping. Pure-ish: depends on an injected clock and an
-  `IntruderPhotographer`. Public surface:
-  - `noteInteraction()` — called by AppController on each locked-state interaction.
-  - `reset()` — called on lock and on successful unlock.
-  - `capturedThisSession` count (for the unlock notification).
-- **`IntruderPhotographer` (new, protocol + AVFoundation impl)** — the hardware
-  boundary: `capture() async -> Data?` returns JPEG bytes or nil (lid closed / no
-  camera / denied). Behind a protocol so policy is unit-testable with a fake.
+- **`IntruderCapturePolicy` (new, in `LeaveMyMacAloneCore`)** — the pure,
+  unit-tested counting/cooldown logic (no Foundation, no AppKit). Surface:
+  - `init(enabled: Bool)` / `mutating func setEnabled(_:)`
+  - `mutating func noteInteraction(now: Double) -> Bool` — `now` is monotonic
+    seconds; returns whether a capture should be taken (decision function above).
+  - `mutating func reset()`
+- **`IntruderPhotographer` (new protocol, in app target)** — the hardware
+  boundary: `func capture() async -> Data?` returns JPEG bytes or nil (lid closed /
+  no camera / denied). Behind a protocol so the coordinator is testable with a fake.
+- **`IntruderCapture` (new coordinator, app target, `@MainActor`)** — owns an
+  `IntruderCapturePolicy` + an `IntruderPhotographer` + the output directory.
+  Surface:
+  - `beginSession(enabled: Bool)` — set policy enabled + reset + zero the count
+    (called from `lock()`).
+  - `endSession()` — reset (called on successful unlock).
+  - `registerInteraction() -> Bool` — feeds `policy.noteInteraction(now:)` with
+    `ProcessInfo.processInfo.systemUptime`; returns whether to capture.
+  - `performCapture() async` — await the photographer; on non-nil data, write the
+    JPEG and increment `capturedThisSession`.
+  - `capturedThisSession: Int` and `postUnlockNotification()` for the unlock nudge.
+  - static `defaultDirectory` + `openPhotosFolder()` (used by the menu item).
 - **`AppSettingsStore` (changed)** — `+captureIntruderPhoto`.
 - **`MenuBarController` (changed)** — `+toggle` under the sleep toggle;
   `+"Open intruder photos"` menu item; triggers permission priming on enable.
-- **`AppController` (changed)** — wires interaction/lock/unlock signals into
-  `IntruderCapture`: calls `noteInteraction()` from the key-interaction callback,
-  the shield click handler, and the unlock-button handler; `reset()` in the lock path and in
-  `finishAuth(success: true)`; fires the unlock notification there too.
-- **`InputBlocker` (changed)** — `+onInteraction: (() -> Void)?` fired for each
-  consumed key event while in full-locked (non-auth) mode, so AppController can
-  count arbitrary keys (today only Space/Enter call back).
+- **`AppController` (changed)** — owns the `IntruderCapture` instance and wires
+  interaction/lock/unlock signals into it. Every locked-state interaction already
+  funnels through exactly two handlers: `handleUnlockButton()` (Space/Return via
+  `onUnlockKey`, plus the Unlock-button click via `onUnlock`) and
+  `handleBackgroundClick()` (any other key via `onLockedKey`, plus background
+  clicks via `onInteract`). It registers an interaction in the `.locked` branch of
+  each (so auth-mode keystrokes are never counted); calls `beginSession()` in
+  `lock()`, and `postUnlockNotification()` + `endSession()` in
+  `finishAuth(success: true)`.
+- **`InputBlocker` — NO change.** Arbitrary keys already call back via
+  `onLockedKey` (non-autorepeat keyDown) and Space/Return via `onUnlockKey`; auth
+  mode fires neither. The existing callbacks fully supply the interaction signal,
+  so no new hook is needed.
 - **`Info.plist` (changed)** — `+NSCameraUsageDescription`.
+- **`Package.swift` (changed)** — link `AVFoundation` and `UserNotifications` on
+  the executable target.
 
 ## Data flow
 
 ```
-locked  ──key────▶ InputBlocker.onInteraction ──▶ AppController ─▶ IntruderCapture.noteInteraction()
-locked  ──click──▶ AppController.handleShieldClick ─▶ IntruderCapture.noteInteraction()
-locked  ──Unlock─▶ AppController.handleUnlockButton ▶ IntruderCapture.noteInteraction()
+locked ─other key─▶ InputBlocker.onLockedKey ─▶ AppController.handleBackgroundClick(.locked) ─▶ registerInteraction()
+locked ─Space/Ret─▶ InputBlocker.onUnlockKey ─▶ AppController.handleUnlockButton(.locked) ───▶ registerInteraction()
+locked ─bg click──▶ shield.onInteract ───────▶ AppController.handleBackgroundClick(.locked) ─▶ registerInteraction()
+locked ─Unlock btn▶ shield.onUnlock ──────────▶ AppController.handleUnlockButton(.locked) ───▶ registerInteraction()
+                                            (count>2 && cooldown ok) ─▶ Task { performCapture() }  (LED ~1s)
+                                                                              ─▶ write ~/Pictures/LeaveMyMacAlone/intruder-*.jpg
                                                             │ (count>2 && cooldown ok)
                                                             ▼
                                                    IntruderPhotographer.capture()  (LED ~1s)
