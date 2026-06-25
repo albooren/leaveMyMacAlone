@@ -19,7 +19,8 @@ let package = Package(
                 .linkedFramework("LocalAuthentication"),
                 .linkedFramework("IOKit"),
                 .linkedFramework("Carbon"),
-                .linkedFramework("AVFoundation")
+                .linkedFramework("AVFoundation"),
+                .linkedFramework("UserNotifications")
             ]
         ),
         .testTarget(
