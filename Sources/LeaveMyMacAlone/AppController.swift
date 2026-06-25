@@ -11,6 +11,7 @@ final class AppController {
     private let kiosk = KioskMode()
     private let authenticator = Authenticator()
     private var machine = LockStateMachine()
+    private let intruder = IntruderCapture(photographer: AVFoundationPhotographer())
 
     private var menuBar: MenuBarController?
     private var hotKey: GlobalHotKey?
@@ -81,6 +82,7 @@ final class AppController {
 
     func lock() {
         guard machine.lock() else { return } // ignore if not unlocked
+        intruder.beginSession(enabled: store.captureIntruderPhoto)
         // Keep the Mac awake while locked only if the user wants it (default on);
         // sleepGuard.end() on teardown is a no-op if we never began.
         if store.preventSleepWhileLocked {
@@ -138,6 +140,7 @@ final class AppController {
     private func handleUnlockButton() {
         switch machine.state {
         case .locked:
+            noteIntruderInteraction()
             requestUnlock()
         case .authenticating:
             // The in-flight auth sheet was lost / buried; bring a fresh one to
@@ -155,11 +158,20 @@ final class AppController {
     private func handleBackgroundClick() {
         switch machine.state {
         case .locked:
+            noteIntruderInteraction()
             shield.flashLocked()
         case .authenticating:
             startAuth()
         case .unlocked:
             break
+        }
+    }
+
+    /// Count one locked-state interaction; capture a photo if the policy says so.
+    /// Capture runs detached so a slow camera never delays the lock/unlock path.
+    private func noteIntruderInteraction() {
+        if intruder.registerInteraction() {
+            Task { @MainActor in await self.intruder.performCapture() }
         }
     }
 
@@ -200,6 +212,8 @@ final class AppController {
             kiosk.disengage()
             shield.hide(success: true)   // play the unlock flourish, then tear down
             sleepGuard.end()
+            intruder.postUnlockNotification()
+            intruder.endSession()
         } else if inputBlocker.endAuthMode() {
             _ = machine.authFailed()          // re-armed; stay locked
             shield.raiseToFullShield()        // back to full cover (no auth dialog)

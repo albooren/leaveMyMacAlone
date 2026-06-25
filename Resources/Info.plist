@@ -35,5 +35,7 @@
     <string>Copyright © 2026 Alperen Kisi. All rights reserved.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Mac'in kilidini açmak için Touch ID kullanılır.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Kilidi açmaya çalışan kişinin fotoğrafını çekmek için kamera kullanılır.</string>
 </dict>
 </plist>
