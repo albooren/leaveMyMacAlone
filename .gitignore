@@ -4,3 +4,6 @@
 DerivedData/
 .DS_Store
 *.xcuserstate
+
+# Release artifacts
+*.dmg
