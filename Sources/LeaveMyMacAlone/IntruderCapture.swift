@@ -46,7 +46,9 @@ final class IntruderCapture {
         policy.noteInteraction(now: ProcessInfo.processInfo.systemUptime)
     }
 
-    /// Grab one photo and save it. Safe to call from a detached Task; never throws.
+    /// Grab one photo and save it. Call via a plain `Task { }` from a
+    /// `@MainActor` context (the class is @MainActor-isolated and not Sendable,
+    /// so `Task.detached` would not compile); never throws.
     func performCapture() async {
         guard let jpeg = await photographer.capture() else { return }
         guard let url = writeJPEG(jpeg) else { return }
