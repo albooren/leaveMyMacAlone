@@ -72,15 +72,44 @@ final class AppController {
 
         registerPowerObservers()
 
-        // Launch into the menu bar; NEVER auto-lock. The user locks on demand —
-        // the "Şimdi Kilitle" menu item or the ⌃⌥⌘L hot key. If permissions are
-        // missing, walk the user through granting them first.
-        if !InputBlocker.hasRequiredPermissions() {
-            startPermissionOnboarding()
+        // Launch into the menu bar; NEVER auto-lock and NEVER prompt for
+        // permissions here. Accessibility is requested lazily, the first time the
+        // user actually tries to lock (see lock()).
+    }
+
+    /// Entry point for locking ("Şimdi Kilitle" and ⌃⌥⌘L). The event tap needs
+    /// Accessibility; if it isn't granted yet, walk the user through it and lock
+    /// automatically once granted. If already granted, lock immediately.
+    func lock() {
+        guard machine.state == .unlocked else { return } // ignore unless idle
+        if InputBlocker.hasAccessibilityPermission() {
+            engageLock()
+        } else {
+            requestAccessibilityThenLock()
         }
     }
 
-    func lock() {
+    /// Run the Accessibility onboarding, then lock automatically on grant. Guarded
+    /// so repeated Lock presses don't start concurrent onboarding or double-lock.
+    private func requestAccessibilityThenLock() {
+        guard onboardingTask == nil else { return } // onboarding already in flight
+        onboardingTask = Task { @MainActor in
+            defer { self.onboardingTask = nil }
+            _ = InputBlocker.ensureAccessibilityPermission(prompt: false) // register in the list
+            guard self.promptPermissionStep(
+                name: "Erişilebilirlik",
+                paneURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+            ) else { return }
+            guard await self.waitForGrant({ InputBlocker.hasAccessibilityPermission() }) else {
+                self.showOnboardingTimeoutAlert(name: "Erişilebilirlik"); return
+            }
+            // Granted — lock now, if still idle.
+            if self.machine.state == .unlocked { self.engageLock() }
+        }
+    }
+
+    /// The actual locking sequence (Accessibility already granted).
+    private func engageLock() {
         guard machine.lock() else { return } // ignore if not unlocked
         intruder.beginSession(enabled: store.captureIntruderPhoto)
         // Keep the Mac awake while locked only if the user wants it (default on);
@@ -379,30 +408,6 @@ final class AppController {
     private func handleSleep() {
         if machine.state == .authenticating {
             panicRelock()
-        }
-    }
-
-    // MARK: - First-run permission onboarding
-
-    /// Walk the user through the two required privileges ONE AT A TIME, in order:
-    /// Accessibility, then Input Monitoring. Each step opens its own Settings
-    /// pane and waits until that privilege is granted before moving to the next.
-    private func startPermissionOnboarding() {
-        onboardingTask?.cancel()
-        onboardingTask = Task { @MainActor in
-            // The active keyboard tap needs only Accessibility (it supersedes
-            // Input Monitoring), so this is a single step.
-            if !InputBlocker.hasAccessibilityPermission() {
-                _ = InputBlocker.ensureAccessibilityPermission(prompt: false) // register in the list
-                guard self.promptPermissionStep(
-                    name: "Erişilebilirlik",
-                    paneURL: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-                ) else { return }
-                guard await self.waitForGrant({ InputBlocker.hasAccessibilityPermission() }) else {
-                    self.showOnboardingTimeoutAlert(name: "Erişilebilirlik"); return
-                }
-            }
-            // Granted — sit silently in the menu bar; the user locks on demand.
         }
     }
 
