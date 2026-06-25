@@ -13,6 +13,7 @@ final class IntruderCapture {
     private var policy: IntruderCapturePolicy
     private let photographer: IntruderPhotographer
     private let directory: URL
+    private let notificationDelegate = ForegroundNotificationPresenter()
     private(set) var capturedThisSession = 0
 
     init(photographer: IntruderPhotographer,
@@ -20,6 +21,14 @@ final class IntruderCapture {
         self.photographer = photographer
         self.directory = directory
         self.policy = IntruderCapturePolicy(enabled: false)
+    }
+
+    /// Install the notification delegate so intruder banners appear even when we
+    /// are the active app at unlock, and tapping one opens the photos folder. Call
+    /// once at app startup — NOT from `init`, since `UNUserNotificationCenter
+    /// .current()` traps in non-app contexts such as unit tests (no bundle id).
+    func installNotificationDelegate() {
+        UNUserNotificationCenter.current().delegate = notificationDelegate
     }
 
     /// `~/Pictures/LeaveMyMacAlone`.
@@ -115,5 +124,30 @@ final class IntruderCapture {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         return f.string(from: Date())
+    }
+}
+
+/// Lets intruder notifications appear even when LeaveMyMacAlone is the active app
+/// at unlock time — macOS suppresses a foreground app's notification banners
+/// unless its delegate opts in via `willPresent`.
+private final class ForegroundNotificationPresenter: NSObject,
+                                                     UNUserNotificationCenterDelegate,
+                                                     @unchecked Sendable {
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler:
+                                    @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    /// Tapping the intruder notification (banner or Notification Center) opens
+    /// the captured-photos folder in Finder.
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.actionIdentifier == UNNotificationDefaultActionIdentifier {
+            Task { @MainActor in IntruderCapture.openPhotosFolder() }
+        }
+        completionHandler()
     }
 }

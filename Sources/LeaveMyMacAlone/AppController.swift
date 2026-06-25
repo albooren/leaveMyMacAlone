@@ -71,6 +71,7 @@ final class AppController {
         }
 
         registerPowerObservers()
+        intruder.installNotificationDelegate()
 
         // Launch into the menu bar; NEVER auto-lock and NEVER prompt for
         // permissions here. Accessibility is requested lazily, the first time the
