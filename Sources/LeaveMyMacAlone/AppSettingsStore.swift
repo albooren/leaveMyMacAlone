@@ -9,6 +9,7 @@ final class AppSettingsStore: ObservableObject {
 
     static let opacityKey = "overlayOpacity"
     static let preventSleepKey = "preventSleepWhileLocked"
+    static let captureIntruderPhotoKey = "captureIntruderPhoto"
 
     /// Notified on every committed change so a live consumer (the shield
     /// window) can update its alpha while the user drags the slider.
@@ -37,6 +38,14 @@ final class AppSettingsStore: ObservableObject {
         }
     }
 
+    /// Capture a front-camera photo when someone tries to force the lock open.
+    /// Default off (opt-in, privacy-sensitive). Read at lock time.
+    @Published var captureIntruderPhoto: Bool {
+        didSet {
+            UserDefaults.standard.set(captureIntruderPhoto, forKey: Self.captureIntruderPhotoKey)
+        }
+    }
+
     init() {
         // object(forKey:) (not double(forKey:)) so a missing key is
         // distinguishable from a stored 0.0.
@@ -46,5 +55,9 @@ final class AppSettingsStore: ObservableObject {
         // Default on (preserve the prior always-prevent-sleep behaviour).
         let storedSleep = UserDefaults.standard.object(forKey: Self.preventSleepKey) as? Bool
         preventSleepWhileLocked = storedSleep ?? true
+
+        // Default off — capture is opt-in.
+        let storedCapture = UserDefaults.standard.object(forKey: Self.captureIntruderPhotoKey) as? Bool
+        captureIntruderPhoto = storedCapture ?? false
     }
 }
