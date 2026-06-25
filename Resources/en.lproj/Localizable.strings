@@ -18,6 +18,9 @@
 "İzinsiz giriş fotoğraflarını aç" = "Open intruder photos";
 
 /* --- Permission onboarding & alerts (AppKit) --- */
+"Kamera izni gerekli" = "Camera permission required";
+"İzinsiz giriş fotoğrafı çekebilmek için Kamera izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Kamera bölümünde LeaveMyMacAlone uygulamasına izin ver." = "Capturing intruder photos needs Camera access. In System Settings > Privacy & Security > Camera, allow LeaveMyMacAlone.";
+"Kamera Ayarlarını Aç" = "Open Camera Settings";
 "Erişilebilirlik" = "Accessibility";
 "%@ izni gerekli" = "%@ permission required";
 "LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır." = "LeaveMyMacAlone needs the %@ permission to block input. Click the button below, find LeaveMyMacAlone in the list, and turn its switch on. It completes automatically once granted.";

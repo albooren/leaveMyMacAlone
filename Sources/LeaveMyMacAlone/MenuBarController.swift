@@ -185,12 +185,45 @@ final class MenuBarController {
         configureStatusButton()
     }
 
-    /// When the user enables intruder capture, request Camera + Notification
-    /// permission now (a calm moment) so the prompts never appear mid-intrusion.
+    /// When the user enables intruder capture, request Camera permission now (a
+    /// calm moment) so the prompt never appears mid-intrusion. For an accessory
+    /// (menu-bar) app the TCC prompt only surfaces if we are the active app, so
+    /// activate first. If the user previously denied camera, the system won't
+    /// re-prompt — guide them to the Camera Settings pane instead.
     private func primeIntruderPermissions() {
-        AVCaptureDevice.requestAccess(for: .video) { _ in }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            break
+        case .notDetermined:
+            NSApp.activate(ignoringOtherApps: true)
+            AVCaptureDevice.requestAccess(for: .video) { _ in }
+        case .denied, .restricted:
+            showCameraDeniedAlert()
+        @unknown default:
+            break
+        }
+        // Notifications power the unlock summary; independent of camera state.
         UNUserNotificationCenter.current()
             .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    /// Camera was previously denied; the system won't re-prompt. Offer to open the
+    /// Camera privacy pane so the user can enable it manually.
+    private func showCameraDeniedAlert() {
+        let alert = NSAlert()
+        alert.messageText = NSLocalizedString("Kamera izni gerekli",
+                                              comment: "Camera denied title")
+        alert.informativeText = NSLocalizedString(
+            "İzinsiz giriş fotoğrafı çekebilmek için Kamera izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Kamera bölümünde LeaveMyMacAlone uygulamasına izin ver.",
+            comment: "Camera denied body")
+        alert.addButton(withTitle: NSLocalizedString("Kamera Ayarlarını Aç",
+                                                     comment: "Open camera settings button"))
+        alert.addButton(withTitle: NSLocalizedString("İptal", comment: "Cancel button"))
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func configureStatusButton() {
