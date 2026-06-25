@@ -20,7 +20,8 @@ let package = Package(
                 .linkedFramework("IOKit"),
                 .linkedFramework("Carbon"),
                 .linkedFramework("AVFoundation"),
-                .linkedFramework("UserNotifications")
+                .linkedFramework("UserNotifications"),
+                .linkedFramework("CoreImage")
             ]
         ),
         .testTarget(
