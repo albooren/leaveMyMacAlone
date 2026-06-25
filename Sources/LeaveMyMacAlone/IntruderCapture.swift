@@ -67,7 +67,7 @@ final class IntruderCapture {
                                       comment: "Intruder notification body"),
             capturedThisSession)
         let request = UNNotificationRequest(
-            identifier: "intruder-\(ProcessInfo.processInfo.systemUptime)",
+            identifier: "intruder-\(UUID().uuidString)",
             content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
     }

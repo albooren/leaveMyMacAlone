@@ -168,7 +168,8 @@ final class AppController {
     }
 
     /// Count one locked-state interaction; capture a photo if the policy says so.
-    /// Capture runs detached so a slow camera never delays the lock/unlock path.
+    /// Capture runs in a separate main-actor Task so a slow camera never delays
+    /// the lock/unlock path.
     private func noteIntruderInteraction() {
         if intruder.registerInteraction() {
             Task { @MainActor in await self.intruder.performCapture() }
