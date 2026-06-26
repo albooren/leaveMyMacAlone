@@ -6,5 +6,11 @@
          Accessibility/Input Monitoring TCC grants, which the sandbox forbids. -->
     <key>com.apple.security.app-sandbox</key>
     <false/>
+    <!-- Hardened Runtime gates camera access on this entitlement: without it tccd
+         disallows the prompt entirely ("Policy disallows prompt ... kTCCServiceCamera
+         denied"), so the intruder-capture permission can never be granted. Required
+         even for a non-sandboxed app under the Hardened Runtime. -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
 </dict>
 </plist>
