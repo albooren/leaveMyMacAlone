@@ -37,7 +37,11 @@ final class AVFoundationPhotographer: NSObject, IntruderPhotographer, @unchecked
         guard session.canAddOutput(output) else { return nil }
         session.addOutput(output)
 
-        let collector = FrameCollector(warmupFrames: 8)
+        // Skip more warm-up frames in low light: auto-exposure/focus take ~0.5–1.5s
+        // to converge, and the frame rate drops as exposure lengthens, so a fixed
+        // count naturally waits longer the darker it is. The timeout is generous to
+        // cover that drop without ever hanging.
+        let collector = FrameCollector(warmupFrames: 20)
         let queue = DispatchQueue(label: "com.alperenkisi.leavemymacalone.camera")
         output.setSampleBufferDelegate(collector, queue: queue)
 
@@ -45,7 +49,7 @@ final class AVFoundationPhotographer: NSObject, IntruderPhotographer, @unchecked
         guard session.isRunning else { return nil }
         defer { session.stopRunning() }
 
-        return await collector.firstFrame(timeout: .seconds(3))
+        return await collector.firstFrame(timeout: .seconds(4))
     }
 
     private static func frontCamera() -> AVCaptureDevice? {
