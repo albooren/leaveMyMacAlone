@@ -112,6 +112,10 @@ final class AppController {
     /// The actual locking sequence (Accessibility already granted).
     private func engageLock() {
         guard machine.lock() else { return } // ignore if not unlocked
+        // If the user is inside another app's native full-screen Space, our shield
+        // (a third-party window) cannot cover it — pull that app out of full-screen
+        // so the lock lands on a Desktop Space the shield covers. No-op otherwise.
+        FullScreenExiter.exitFrontmostFullScreen()
         intruder.beginSession(enabled: store.captureIntruderPhoto)
         // Keep the Mac awake while locked only if the user wants it (default on);
         // sleepGuard.end() on teardown is a no-op if we never began.
