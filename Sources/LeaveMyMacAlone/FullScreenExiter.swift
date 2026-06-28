@@ -18,7 +18,7 @@ enum FullScreenExiter {
     private nonisolated(unsafe) static let fullScreenAttribute = "AXFullScreen" as CFString
 
     /// If the frontmost app (not us) has a focused window in native full-screen,
-    /// take it out of full-screen. Returns whether it exited one (for logging).
+    /// take it out of full-screen. Returns whether it exited a full-screen window.
     @discardableResult
     @MainActor
     static func exitFrontmostFullScreen() -> Bool {
@@ -27,6 +27,12 @@ enum FullScreenExiter {
         guard pid != NSRunningApplication.current.processIdentifier else { return false }
 
         let app = AXUIElementCreateApplication(pid)
+        // Cap how long a hung/unresponsive front app can block the lock path: the
+        // AX messaging API is synchronous (~6s default per call) and this runs
+        // before the shield is shown — fail fast to a no-op rather than leave the
+        // screen uncovered for seconds.
+        _ = AXUIElementSetMessagingTimeout(app, Float(0.5))
+
         guard let window = focusedWindow(of: app), isFullScreen(window) else { return false }
 
         return AXUIElementSetAttributeValue(window, fullScreenAttribute, kCFBooleanFalse) == .success
