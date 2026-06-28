@@ -11,12 +11,11 @@ import ApplicationServices
 /// another app's `AXFullScreen` needs Accessibility but NOT AppleEvents. Best
 /// effort: an app with no focused window, or a non-native full-screen (some games)
 /// that doesn't expose `AXFullScreen`, is left as-is.
-@MainActor
 enum FullScreenExiter {
 
     /// macOS exposes a window's full-screen state under this Accessibility
     /// attribute. There is no public Swift constant for it, so use the string.
-    private static let fullScreenAttribute = "AXFullScreen" as CFString
+    private nonisolated(unsafe) static let fullScreenAttribute = "AXFullScreen" as CFString
 
     /// If the frontmost app (not us) has a focused window in native full-screen,
     /// take it out of full-screen. Returns whether it exited one (for logging).
