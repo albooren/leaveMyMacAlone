@@ -16,7 +16,9 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 👆 **Touch ID / password** to unlock (Unlock button, or Space / Enter).
 - 🌗 **Adjustable darkness** — from a light tint to fully opaque; live preview while dragging.
 - ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
-- 🪶 **Single permission** — Accessibility only (no Input Monitoring needed).
+- 📸 **Intruder capture** *(opt-in)* — snaps a front-camera photo if someone keeps trying to get past the lock; saved to `~/Pictures/LeaveMyMacAlone/`, with a notification on unlock that opens the folder.
+- 🖥️ **Covers full-screen apps** — locking from inside a full-screen app (Slack, Safari, a video) pulls it out of full-screen so the lock actually covers the screen.
+- 🪶 **Lean permissions** — Accessibility for the lock (asked the first time you lock); Camera + Notifications only if you turn on intruder capture.
 - 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch.
 - 🆘 **SSH kill switch** — recover remotely with `killall` if it ever hangs.
 - 🌍 Turkish + English UI (follows the system language).
@@ -26,13 +28,9 @@ background (downloads, renders, builds…) keeps going uninterrupted.
    [Releases](https://github.com/albooren/leaveMyMacAlone/releases/latest), open it,
    and drag the app to **Applications**.
 2. Launch it → a shield icon appears in the menu bar.
-3. **First launch:** the current `v1.0.0` build is Developer ID-signed but **not yet
-   notarized** (Apple's notary service is backlogged), so Gatekeeper may say the developer
-   "cannot be verified." **Right-click the app → Open → Open** — only needed the first time.
-   A notarized build that opens with a normal double-click will replace the download as soon
-   as Apple finishes processing.
-4. It then asks for **Accessibility**: click "Open Accessibility Settings"
-   → turn on `LeaveMyMacAlone` in the list.
+3. The **first time you lock**, it asks for **Accessibility** (needed to block input):
+   click "Open Accessibility Settings" → turn on `LeaveMyMacAlone` → it locks
+   automatically once granted.
 
 ## 🎛️ Usage
 | Action | How |
@@ -41,6 +39,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
 | **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
+| **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
 | **Quit** | Menu > Quit |
 
 ## 🆘 Recovery if it hangs (SSH kill switch)
@@ -77,7 +76,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (22 tests)
+swift build && swift test     # build + tests (33 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds
@@ -88,12 +87,16 @@ it automatically) and the Accessibility grant survives rebuilds.
   the lid open, or attach an external display + power.
 - **Holding the power button** shuts it down at the hardware level (software can't block it).
 - It's non-sandboxed, so it **can't be on the Mac App Store**; it ships as a directly
-  distributed Developer ID-signed download (notarized once Apple's notary service clears it).
+  distributed, Developer ID-signed download.
+- A few **games** use their own (non-native) full-screen that macOS can't pull out of — the
+  lock may land behind those. Native full-screen apps (Slack, Safari, video) are handled.
+- Intruder capture's **green camera light is hardware-enforced** — it's evidence/deterrence, not covert.
 - It stops a prankster co-worker; it is not a military-grade lock.
 
 ## 🔐 Privacy
 No network access, no data collection. LocalAuthentication for Touch ID/password,
-IOKit to keep awake, a CoreGraphics event tap to block input — all local.
+IOKit to keep awake, a CoreGraphics event tap to block input. Intruder photos (opt-in)
+are saved only to `~/Pictures/LeaveMyMacAlone/` on your Mac — never uploaded. All local.
 
 ## 📄 License
 [MIT](LICENSE) © 2026 Alperen Kişi
