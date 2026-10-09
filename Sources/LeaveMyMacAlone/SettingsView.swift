@@ -19,12 +19,37 @@ struct SettingsView: View {
     let onCheckForUpdates: () -> Void
     // Pick an image file for the moving icon (closes the panel while choosing).
     let onChooseImage: () -> Void
+    // Tallest the panel may get (the screen's visible height); beyond it the
+    // content scrolls instead of running off the bottom of the screen.
+    var maxHeight: CGFloat = .infinity
+
+    // Measured height of the content; starts at the cap so the first layout
+    // never collapses, then settles to the real height.
+    @State private var contentHeight: CGFloat = 900
 
     var body: some View {
-        VStack(spacing: 12) {
+        ScrollView(.vertical) {
+            content
+                .background(GeometryReader { proxy in
+                    Color.clear.preference(key: ContentHeightKey.self, value: proxy.size.height)
+                })
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
+        .frame(width: 320, height: min(contentHeight, maxHeight))
+        // The panel window is borderless/clear, so the panel draws its own
+        // surface: Liquid Glass (material on macOS 14–15).
+        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), fallback: .regularMaterial)
+    }
+
+    private var content: some View {
+        VStack(spacing: 10) {
             MiniLockPreview(store: store)
 
-            LockNowButton(action: onLockNow)
+            HStack(spacing: 8) {
+                LockNowButton(action: onLockNow)
+                QuitButton(action: onQuit)
+            }
 
             DarknessCard(store: store, onSliderEditing: onSliderEditing)
 
@@ -33,37 +58,21 @@ struct SettingsView: View {
             FloatingIconCard(store: store,
                              onChooseImage: onChooseImage)
 
-            QuickToggles(store: store,
-                         updates: updates,
-                         onCaptureIntruderEnabled: onCaptureIntruderEnabled,
-                         onOpenIntruderPhotos: onOpenIntruderPhotos,
-                         onCheckForUpdates: onCheckForUpdates)
+            WhileLockedCard(store: store,
+                            onCaptureIntruderEnabled: onCaptureIntruderEnabled,
+                            onOpenIntruderPhotos: onOpenIntruderPhotos)
 
-            HStack {
-                Button(action: onCheckForUpdates) {
-                    Label("Güncellemeleri kontrol et", systemImage: "arrow.down.circle")
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .glassSurface(Capsule(), interactive: true)
-                }
-                .buttonStyle(.plain)
-                Spacer()
-                Button(action: onQuit) {
-                    Label("Çık", systemImage: "power")
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .glassSurface(Capsule(), interactive: true)
-                }
-                .buttonStyle(.plain)
-            }
+            AppCard(updates: updates, onCheckForUpdates: onCheckForUpdates)
         }
         .padding(14)
-        .frame(width: 300)
-        // The panel window is borderless/clear, so the panel draws its own
-        // surface: Liquid Glass (material on macOS 14–15).
-        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), fallback: .regularMaterial)
+        .frame(width: 320)
+    }
+}
+
+private struct ContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
@@ -82,7 +91,7 @@ private struct MiniLockPreview: View {
         // A fixed-size base keeps every layer (and the pills) inside the box.
         Color.clear
             .frame(maxWidth: .infinity)
-            .frame(height: 124)
+            .frame(height: 112)
             .background(AbstractDesktop())
             .overlay(Color.black.opacity(store.overlayOpacity))
             .overlay(content)
@@ -214,6 +223,24 @@ private struct LockNowButton: View {
     }
 }
 
+/// Square glass "quit" button beside Lock Now.
+private struct QuitButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "power")
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 46, height: 46)
+                .glassSurface(RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableStyle())
+        .help("LeaveMyMacAlone'dan çık")
+        .accessibilityLabel("Çık")
+    }
+}
+
 private struct PressableStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -233,25 +260,21 @@ private struct DarknessCard: View {
     private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                SectionLabel("KOYULUK")
-                Spacer()
-                Text(verbatim: "\(opacityPercent)%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            HStack(spacing: 8) {
-                Image(systemName: "sun.min.fill")
-                    .imageScale(.small)
-                    .foregroundStyle(.secondary)
-                Slider(value: $store.overlayOpacity, in: Transparency.range,
-                       onEditingChanged: onSliderEditing)
-                    .controlSize(.small)
-                Image(systemName: "moon.fill")
-                    .imageScale(.small)
-                    .foregroundStyle(.secondary)
-            }
+        HStack(spacing: 8) {
+            SectionLabel("KOYULUK")
+            Image(systemName: "sun.min.fill")
+                .imageScale(.small)
+                .foregroundStyle(.secondary)
+            Slider(value: $store.overlayOpacity, in: Transparency.range,
+                   onEditingChanged: onSliderEditing)
+                .controlSize(.small)
+            Image(systemName: "moon.fill")
+                .imageScale(.small)
+                .foregroundStyle(.secondary)
+            Text(verbatim: "\(opacityPercent)%")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 30, alignment: .trailing)
         }
         .modifier(PanelCard())
     }
@@ -638,87 +661,127 @@ private struct IconTile<Content: View>: View {
     }
 }
 
-// MARK: - Quick toggles
+// MARK: - Settings rows
 
-private struct QuickToggles: View {
+/// What happens while the Mac is locked. Every row is a full sentence with a
+/// standard switch, so blue always means "on".
+private struct WhileLockedCard: View {
     @ObservedObject var store: AppSettingsStore
-    @ObservedObject var updates: UpdateController
     let onCaptureIntruderEnabled: () -> Void
     let onOpenIntruderPhotos: () -> Void
-    let onCheckForUpdates: () -> Void
+
+    /// Stored as "keep playing" (default off); shown as the positive action.
+    private var pauseMedia: Binding<Bool> {
+        Binding(get: { !store.keepMediaPlaying }, set: { store.keepMediaPlaying = !$0 })
+    }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
-            ToggleTile(title: "Müzik ve video",
-                       systemImage: store.keepMediaPlaying ? "play.fill" : "pause.fill",
-                       isOn: store.keepMediaPlaying,
-                       onText: "Çalmaya devam eder", offText: "Kilitlenince durur",
-                       help: "Kilitlediğinde çalan müzik ve videolar dursun mu, çalmaya devam etsin mi?") {
-                store.keepMediaPlaying.toggle()
+        VStack(alignment: .leading, spacing: 10) {
+            SectionLabel("KİLİTLİYKEN")
+
+            SettingRow(systemImage: "pause.fill",
+                       title: "Müzik ve videoyu duraklat",
+                       subtitle: store.keepMediaPlaying
+                           ? "Kilitliyken çalmaya devam eder"
+                           : "Kilitlenince durur",
+                       isOn: pauseMedia)
+
+            Divider()
+
+            SettingRow(systemImage: "cup.and.saucer.fill",
+                       title: "Mac'i uyanık tut",
+                       subtitle: "İndirmeler kilitliyken sürer",
+                       isOn: $store.preventSleepWhileLocked)
+
+            Divider()
+
+            SettingRow(systemImage: "camera.fill",
+                       title: "İzinsiz girişte fotoğraf çek",
+                       subtitle: "Yalnızca bu Mac'te saklanır",
+                       isOn: $store.captureIntruderPhoto) {
+                if store.captureIntruderPhoto {
+                    LinkRow(title: "Fotoğrafları aç", action: onOpenIntruderPhotos)
+                }
             }
-            ToggleTile(title: "Uyanık tut", systemImage: "cup.and.saucer.fill",
-                       isOn: store.preventSleepWhileLocked,
-                       help: "Kilitliyken Mac uykuya geçmez.") {
-                store.preventSleepWhileLocked.toggle()
-            }
-            ToggleTile(title: "İzinsiz giriş", systemImage: "camera.fill",
-                       isOn: store.captureIntruderPhoto,
-                       help: "Kilidi zorlayanın ön kameradan fotoğrafını çeker. Sağ tık: fotoğraflar.") {
-                store.captureIntruderPhoto.toggle()
-                if store.captureIntruderPhoto { onCaptureIntruderEnabled() }
-            }
-            .contextMenu {
-                Button("İzinsiz giriş fotoğraflarını aç", action: onOpenIntruderPhotos)
-            }
-            ToggleTile(title: "Güncelleme", systemImage: "arrow.triangle.2.circlepath",
-                       isOn: updates.automaticallyUpdates,
-                       onText: "Otomatik", offText: "Elle",
-                       help: "Yeni sürümler arka planda indirilir ve kilit açıkken kurulur.") {
-                updates.automaticallyUpdates.toggle()
-            }
-            .contextMenu {
-                Button("Şimdi kontrol et", action: onCheckForUpdates)
+            .onChange(of: store.captureIntruderPhoto) { _, enabled in
+                if enabled { onCaptureIntruderEnabled() }
             }
         }
-        .glassGrouped(spacing: 8)
+        .modifier(PanelCard())
     }
 }
 
-private struct ToggleTile: View {
-    let title: LocalizedStringKey
+private struct AppCard: View {
+    @ObservedObject var updates: UpdateController
+    let onCheckForUpdates: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SettingRow(systemImage: "arrow.triangle.2.circlepath",
+                       title: "Otomatik güncelle",
+                       subtitle: "Kilit açıkken kurulur",
+                       isOn: $updates.automaticallyUpdates) {
+                LinkRow(title: "Şimdi kontrol et", action: onCheckForUpdates)
+            }
+        }
+        .modifier(PanelCard())
+    }
+}
+
+/// Icon · title + subtitle · switch, with optional extra content (a link) under the text.
+private struct SettingRow<Extra: View>: View {
     let systemImage: String
-    let isOn: Bool
-    var onText: LocalizedStringKey = "Açık"
-    var offText: LocalizedStringKey = "Kapalı"
-    let help: LocalizedStringKey
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+    @Binding var isOn: Bool
+    @ViewBuilder let extra: () -> Extra
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 26, height: 26)
+                .background(Color.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                extra()
+            }
+            Spacer(minLength: 4)
+            Toggle(title, isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+        }
+    }
+}
+
+extension SettingRow where Extra == EmptyView {
+    init(systemImage: String, title: LocalizedStringKey, subtitle: LocalizedStringKey, isOn: Binding<Bool>) {
+        self.init(systemImage: systemImage, title: title, subtitle: subtitle, isOn: isOn) { EmptyView() }
+    }
+}
+
+private struct LinkRow: View {
+    let title: LocalizedStringKey
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(isOn ? Color.white : Color.secondary)
-                    .frame(width: 28, height: 28)
-                    .background(isOn ? Color.accentColor : Color.primary.opacity(0.15), in: Circle())
-                VStack(spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                    Text(isOn ? onText : offText)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
+            HStack(spacing: 2) {
+                Text(title)
+                Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .glassSurface(RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
-            .contentShape(Rectangle())
+            .font(.caption.weight(.medium))
         }
-        .buttonStyle(PressableStyle())
-        .help(help)
-        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .buttonStyle(.link)
+        .padding(.top, 2)
     }
 }
 

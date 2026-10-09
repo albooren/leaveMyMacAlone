@@ -118,7 +118,8 @@ final class MenuBarController {
                 self?.closePanel()
                 self?.updates.checkForUpdates()
             },
-            onChooseImage: { [weak self] in self?.chooseFloatingImage() }
+            onChooseImage: { [weak self] in self?.chooseFloatingImage() },
+            maxHeight: maxPanelHeight(for: buttonWindow.screen)
         )
         let hosting = FirstMouseHostingView(rootView: root)
         hosting.layoutSubtreeIfNeeded()
@@ -159,6 +160,12 @@ final class MenuBarController {
         // Preview is NOT shown on open; it appears only while the slider is
         // dragged (see SettingsView onSliderEditing). closePanel() stops it as a
         // safety net if the panel closes mid-drag.
+    }
+
+    /// Room below the menu bar, minus a small margin.
+    private func maxPanelHeight(for screen: NSScreen?) -> CGFloat {
+        let visible = (screen ?? NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? .zero
+        return max(300, visible.height - 12)
     }
 
     /// The open panel can't sit above our popUpMenu-level panel, so close the
