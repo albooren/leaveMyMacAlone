@@ -49,6 +49,26 @@ final class ReturnTimeStepsTests: XCTestCase {
         XCTAssertEqual(ReturnTimeSteps.previous(before: 50), 45)
     }
 
+    func testParsesTypedMinutes() {
+        XCTAssertEqual(ReturnTimeSteps.parseDuration("50"), 50)
+        XCTAssertEqual(ReturnTimeSteps.parseDuration(" 5 "), 5)
+    }
+
+    func testParsesHoursColonMinutes() {
+        XCTAssertEqual(ReturnTimeSteps.parseDuration("1:30"), 90)
+        XCTAssertEqual(ReturnTimeSteps.parseDuration("2.15"), 135)
+        XCTAssertEqual(ReturnTimeSteps.parseDuration("0:45"), 45)
+    }
+
+    func testRejectsInvalidOrOutOfRangeDurations() {
+        XCTAssertNil(ReturnTimeSteps.parseDuration(""))
+        XCTAssertNil(ReturnTimeSteps.parseDuration("abc"))
+        XCTAssertNil(ReturnTimeSteps.parseDuration("0"))
+        XCTAssertNil(ReturnTimeSteps.parseDuration("1:75"))
+        XCTAssertNil(ReturnTimeSteps.parseDuration("13:00"))   // over 12 hours
+        XCTAssertNil(ReturnTimeSteps.parseDuration("-5"))
+    }
+
     func testSplitsIntoHoursAndMinutes() {
         XCTAssertTrue(ReturnTimeSteps.split(90) == (1, 30))
         XCTAssertTrue(ReturnTimeSteps.split(45) == (0, 45))

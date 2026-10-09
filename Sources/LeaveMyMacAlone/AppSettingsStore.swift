@@ -10,7 +10,6 @@ final class AppSettingsStore: ObservableObject {
     static let opacityKey = "overlayOpacity"
     static let preventSleepKey = "preventSleepWhileLocked"
     static let captureIntruderPhotoKey = "captureIntruderPhoto"
-    static let pauseMediaKey = "pauseMediaOnLock"
     static let awayPresetKey = "awayPreset"
     static let awayCustomTextKey = "awayCustomText"
     static let awayReturnMinutesKey = "awayReturnMinutes"
@@ -51,13 +50,6 @@ final class AppSettingsStore: ObservableObject {
     @Published var captureIntruderPhoto: Bool {
         didSet {
             UserDefaults.standard.set(captureIntruderPhoto, forKey: Self.captureIntruderPhotoKey)
-        }
-    }
-
-    /// Pause playing audio/video when locking. Default on.
-    @Published var pauseMediaOnLock: Bool {
-        didSet {
-            UserDefaults.standard.set(pauseMediaOnLock, forKey: Self.pauseMediaKey)
         }
     }
 
@@ -102,9 +94,6 @@ final class AppSettingsStore: ObservableObject {
         // Default off — capture is opt-in.
         let storedCapture = UserDefaults.standard.object(forKey: Self.captureIntruderPhotoKey) as? Bool
         captureIntruderPhoto = storedCapture ?? false
-
-        let storedPause = UserDefaults.standard.object(forKey: Self.pauseMediaKey) as? Bool
-        pauseMediaOnLock = storedPause ?? true
 
         let storedPreset = UserDefaults.standard.string(forKey: Self.awayPresetKey)
         awayPreset = storedPreset.flatMap(AwayPreset.init(rawValue:)) ?? .none

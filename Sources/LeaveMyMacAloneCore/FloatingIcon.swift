@@ -31,12 +31,38 @@ public enum ReturnTimeSteps {
     public static let minutes = [15, 30, 45, 60, 90, 120, 180, 240]
     public static let defaultMinutes = 30
 
+    /// Longest duration that can be typed in by hand.
+    public static let maxMinutes = 12 * 60
+
+    /// The next step up; a value already past the last step (typed by hand) stays.
     public static func next(after value: Int) -> Int {
-        minutes.first { $0 > value } ?? minutes[minutes.count - 1]
+        minutes.first { $0 > value } ?? value
     }
 
+    /// The next step down; a value already below the first step stays.
     public static func previous(before value: Int) -> Int {
-        minutes.last { $0 < value } ?? minutes[0]
+        minutes.last { $0 < value } ?? value
+    }
+
+    /// A duration typed by hand: "50" → 50 minutes, "1:30" or "1.30" → 90.
+    /// Nil if unreadable, zero, or longer than `maxMinutes`.
+    public static func parseDuration(_ text: String) -> Int? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        let parts = trimmed.split(separator: ":", omittingEmptySubsequences: false).count == 2
+            ? trimmed.split(separator: ":", omittingEmptySubsequences: false)
+            : trimmed.split(separator: ".", omittingEmptySubsequences: false)
+        let total: Int
+        switch parts.count {
+        case 1:
+            guard let m = Int(parts[0]) else { return nil }
+            total = m
+        case 2:
+            guard let h = Int(parts[0]), let m = Int(parts[1]), h >= 0, (0..<60).contains(m) else { return nil }
+            total = h * 60 + m
+        default:
+            return nil
+        }
+        return (1...maxMinutes).contains(total) ? total : nil
     }
 
     /// 90 → (1, 30), for "1 sa 30 dk sonra".

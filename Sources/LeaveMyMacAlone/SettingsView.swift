@@ -67,68 +67,67 @@ struct SettingsView: View {
 
 // MARK: - Preview
 
-/// A small live replica of the lock screen: the user's wallpaper under the
-/// chosen darkness, the message, return time, clock and the drifting icon.
+/// A small live replica of the lock screen. The real lock dims whatever is on
+/// screen (it does not show the wallpaper), so the backdrop is an abstract
+/// desktop with a few windows under the chosen darkness, plus the message,
+/// return time, clock and the drifting icon.
 private struct MiniLockPreview: View {
     @ObservedObject var store: AppSettingsStore
 
+    private let inset: CGFloat = 8
+
     var body: some View {
-        ZStack {
-            WallpaperThumbnail()
-            Color.black.opacity(store.overlayOpacity)
-
-            TimelineView(.everyMinute) { context in
-                let status = store.awayStatus(lockedAt: context.date)
-                VStack(spacing: 2) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text("Kilitli")
-                        .font(.system(size: 10))
-                        .opacity(0.8)
-                    if let headline = status?.headline {
-                        headlineText(headline)
-                            .font(.system(size: 14, weight: .semibold))
-                            .lineLimit(1)
-                    }
-                    if let returnTime = status?.returnTime {
-                        Text("Dönüş: \(Text(returnTime, style: .time))")
-                            .font(.system(size: 10))
-                            .opacity(0.85)
-                    }
-                    Text(context.date, style: .time)
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .padding(.top, 2)
+        // A fixed-size base keeps every layer (and the pills) inside the box.
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 124)
+            .background(AbstractDesktop())
+            .overlay(Color.black.opacity(store.overlayOpacity))
+            .overlay(content)
+            .overlay {
+                if let icon = previewIcon {
+                    BouncingIconView(icon: icon, size: 22, speed: 34)
+                        .padding(6)
+                        // Restart the drift when the icon changes.
+                        .id(iconIdentity)
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 30)
             }
-
-            if let icon = previewIcon {
-                BouncingIconView(icon: icon, size: 22, speed: 34)
-                    .padding(6)
-                    // Restart the drift when the icon changes.
-                    .id(iconIdentity)
+            .overlay(alignment: .topLeading) {
+                Pill(text: Text("Önizleme")).padding(inset)
             }
+            .overlay(alignment: .topTrailing) {
+                Pill(text: Text(verbatim: "v\(UpdateController.currentVersion)")).padding(inset)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
 
-            VStack {
-                HStack {
-                    Text("Önizleme")
-                        .font(.system(size: 10))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(.white.opacity(0.16), in: Capsule())
-                    Spacer()
-                    Text(verbatim: "v\(UpdateController.currentVersion)")
-                        .font(.system(size: 10))
-                        .opacity(0.8)
+    private var content: some View {
+        TimelineView(.everyMinute) { context in
+            let status = store.awayStatus(lockedAt: context.date)
+            VStack(spacing: 2) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Kilitli")
+                    .font(.system(size: 10))
+                    .opacity(0.8)
+                if let headline = status?.headline {
+                    headlineText(headline)
+                        .font(.system(size: 14, weight: .semibold))
+                        .lineLimit(1)
                 }
-                Spacer()
+                if let returnTime = status?.returnTime {
+                    Text("Dönüş: \(Text(returnTime, style: .time))")
+                        .font(.system(size: 10))
+                        .opacity(0.85)
+                }
+                Text(context.date, style: .time)
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                    .padding(.top, 2)
             }
             .foregroundStyle(.white)
-            .padding(8)
+            .padding(.horizontal, 30)
+            .padding(.top, 14)
         }
-        .frame(height: 124)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var previewIcon: FloatingIcon? {
@@ -149,36 +148,39 @@ private struct MiniLockPreview: View {
     }
 }
 
-/// The main screen's desktop picture, downscaled once; a neutral color if unavailable.
-private struct WallpaperThumbnail: View {
-    @MainActor private static var cached: NSImage?
-    @MainActor private static var loaded = false
+private struct Pill: View {
+    let text: Text
 
     var body: some View {
-        if let image = Self.image() {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } else {
-            Color(red: 0.29, green: 0.35, blue: 0.43)
+        text
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(.white.opacity(0.16), in: Capsule())
+    }
+}
+
+/// Stand-in for "whatever is on your screen": a desktop with a couple of windows.
+private struct AbstractDesktop: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let w = proxy.size.width, h = proxy.size.height
+            ZStack(alignment: .topLeading) {
+                Color(red: 0.36, green: 0.42, blue: 0.50)
+                window.frame(width: w * 0.55, height: h * 0.62).offset(x: w * 0.06, y: h * 0.20)
+                window.frame(width: w * 0.42, height: h * 0.55).offset(x: w * 0.50, y: h * 0.34)
+            }
         }
     }
 
-    @MainActor
-    private static func image() -> NSImage? {
-        if loaded { return cached }
-        loaded = true
-        guard let screen = NSScreen.main,
-              let url = NSWorkspace.shared.desktopImageURL(for: screen),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-        let options = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: 640
-        ] as CFDictionary
-        guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else { return nil }
-        cached = NSImage(cgImage: thumb, size: .zero)
-        return cached
+    private var window: some View {
+        RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .fill(Color(white: 0.93))
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color(white: 0.82)).frame(height: 9)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
 
@@ -278,27 +280,76 @@ private struct MessageCard: View {
 }
 
 /// "− 14:30 +": the return time as it will appear, stepped in ReturnTimeSteps.
+/// Clicking the time lets the user type any duration ("50", "1:30").
 private struct ReturnStepper: View {
     @ObservedObject var store: AppSettingsStore
+
+    @State private var editing = false
+    @State private var draft = ""
+    @State private var draftInvalid = false
+    @FocusState private var fieldFocused: Bool
+
+    private func beginEditing() {
+        draft = ""
+        draftInvalid = false
+        editing = true
+        DispatchQueue.main.async { fieldFocused = true }
+    }
+
+    private func commit() {
+        guard let minutes = ReturnTimeSteps.parseDuration(draft) else {
+            draftInvalid = true
+            return
+        }
+        store.awayReturnMinutes = minutes
+        editing = false
+    }
 
     var body: some View {
         HStack(spacing: 10) {
             StepButton(systemImage: "minus", label: "Daha erken") {
+                editing = false
                 store.awayReturnMinutes = ReturnTimeSteps.previous(before: store.awayReturnMinutes)
             }
-            TimelineView(.everyMinute) { context in
-                VStack(spacing: 0) {
-                    if let time = store.awayStatus(lockedAt: context.date)?.returnTime {
-                        Text(time, style: .time)
-                            .font(.system(size: 22, weight: .semibold).monospacedDigit())
+            Group {
+                if editing {
+                    VStack(spacing: 2) {
+                        TextField("Örn. 50 veya 1:30", text: $draft)
+                            .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.center)
+                            .focused($fieldFocused)
+                            .onSubmit(commit)
+                            .onExitCommand { editing = false }
+                        Text(draftInvalid ? "Dakika (en çok 12 sa)" : "Süreyi yaz, Enter'a bas")
+                            .font(.caption)
+                            .foregroundStyle(draftInvalid ? Color.red : .secondary)
                     }
-                    Text(verbatim: Self.relative(store.awayReturnMinutes))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                } else {
+                    Button(action: beginEditing) {
+                        TimelineView(.everyMinute) { context in
+                            VStack(spacing: 0) {
+                                if let time = store.awayStatus(lockedAt: context.date)?.returnTime {
+                                    Text(time, style: .time)
+                                        .font(.system(size: 22, weight: .semibold).monospacedDigit())
+                                }
+                                HStack(spacing: 3) {
+                                    Text(verbatim: Self.relative(store.awayReturnMinutes))
+                                    Image(systemName: "pencil").font(.system(size: 9, weight: .semibold))
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Süreyi elle yazmak için tıkla")
                 }
-                .frame(maxWidth: .infinity)
             }
+            .frame(maxWidth: .infinity)
             StepButton(systemImage: "plus", label: "Daha geç") {
+                editing = false
                 store.awayReturnMinutes = ReturnTimeSteps.next(after: store.awayReturnMinutes)
             }
         }
@@ -512,13 +563,7 @@ private struct QuickToggles: View {
     let onCheckForUpdates: () -> Void
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
-            ToggleTile(title: "Medya", systemImage: "pause.fill",
-                       isOn: store.pauseMediaOnLock,
-                       onText: "Duraklatılır", offText: "Kapalı",
-                       help: "Kilitlenince çalan müzik ve videolar durur.") {
-                store.pauseMediaOnLock.toggle()
-            }
+        HStack(spacing: 8) {
             ToggleTile(title: "Uyanık tut", systemImage: "cup.and.saucer.fill",
                        isOn: store.preventSleepWhileLocked,
                        help: "Kilitliyken Mac uykuya geçmez.") {
@@ -557,13 +602,13 @@ private struct ToggleTile: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Image(systemName: systemImage)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(isOn ? Color.white : Color.secondary)
                     .frame(width: 28, height: 28)
                     .background(isOn ? Color.accentColor : Color.primary.opacity(0.15), in: Circle())
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(spacing: 1) {
                     Text(title)
                         .font(.system(size: 12, weight: .semibold))
                         .lineLimit(1)
@@ -572,10 +617,9 @@ private struct ToggleTile: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
-                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
-            .frame(height: 50)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
             .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .contentShape(Rectangle())
         }
