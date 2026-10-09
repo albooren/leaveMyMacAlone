@@ -87,3 +87,7 @@
 "Orta" = "Medium";
 "Büyük" = "Large";
 "KOYULUK" = "DARKNESS";
+"Müzik ve video" = "Music & video";
+"Çalmaya devam eder" = "Keeps playing";
+"Kilitlenince durur" = "Pauses on lock";
+"Kilitlediğinde çalan müzik ve videolar dursun mu, çalmaya devam etsin mi?" = "Choose whether music and videos pause or keep playing when you lock.";

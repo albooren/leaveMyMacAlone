@@ -648,7 +648,14 @@ private struct QuickToggles: View {
     let onCheckForUpdates: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible())], spacing: 8) {
+            ToggleTile(title: "Müzik ve video",
+                       systemImage: store.keepMediaPlaying ? "play.fill" : "pause.fill",
+                       isOn: store.keepMediaPlaying,
+                       onText: "Çalmaya devam eder", offText: "Kilitlenince durur",
+                       help: "Kilitlediğinde çalan müzik ve videolar dursun mu, çalmaya devam etsin mi?") {
+                store.keepMediaPlaying.toggle()
+            }
             ToggleTile(title: "Uyanık tut", systemImage: "cup.and.saucer.fill",
                        isOn: store.preventSleepWhileLocked,
                        help: "Kilitliyken Mac uykuya geçmez.") {

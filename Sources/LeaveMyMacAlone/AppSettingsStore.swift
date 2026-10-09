@@ -18,6 +18,7 @@ final class AppSettingsStore: ObservableObject {
     static let floatingEmojiKey = "floatingEmoji"
     static let floatingImageNameKey = "floatingImageName"
     static let floatingSizeKey = "floatingIconSize"
+    static let keepMediaPlayingKey = "keepMediaPlayingOnLock"
 
     /// Notified on every committed change so a live consumer (the shield
     /// window) can update its alpha while the user drags the slider.
@@ -111,6 +112,15 @@ final class AppSettingsStore: ObservableObject {
         floatingImageName = UserDefaults.standard.string(forKey: Self.floatingImageNameKey)
         let storedSize = UserDefaults.standard.string(forKey: Self.floatingSizeKey)
         floatingSize = storedSize.flatMap(FloatingIconSize.init(rawValue:)) ?? .medium
+        keepMediaPlaying = UserDefaults.standard.bool(forKey: Self.keepMediaPlayingKey)
+    }
+
+    /// Let music/video keep playing when the Mac locks. Default off: locking
+    /// pauses whatever is playing.
+    @Published var keepMediaPlaying: Bool {
+        didSet {
+            UserDefaults.standard.set(keepMediaPlaying, forKey: Self.keepMediaPlayingKey)
+        }
     }
 
     /// How big the drifting icon is.

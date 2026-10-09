@@ -18,7 +18,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 💬 **Lock-screen status** — tell passers-by where you are ("In a meeting", "At lunch", "Back soon" or your own text) and, optionally, when you'll be back.
 - 📀 **Moving icon** — an emoji (any — searchable picker right in the menu) or your own image drifts across the lock screen like the old DVD screensaver.
 - 👀 **Live preview** — the menu shows a mini lock screen with your darkness, message, return time and icon as you change them.
-- ⏸️ **Pauses media** — music and videos always pause the moment you lock, so nothing keeps playing at an empty desk (not auto-resumed).
+- ⏸️ **Pauses media** — music and videos pause the moment you lock, so nothing keeps playing at an empty desk (not auto-resumed). Want your music to keep going? Flip the "Music & video" tile to "Keeps playing".
 - ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
 - 📸 **Intruder capture** *(opt-in)* — snaps a front-camera photo if someone keeps trying to get past the lock; saved to `~/Pictures/LeaveMyMacAlone/`, with a notification on unlock that opens the folder.
 - 🖥️ **Covers full-screen apps** — locking from inside a full-screen app (Slack, Safari, a video) pulls it out of full-screen so the lock actually covers the screen.
@@ -45,7 +45,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
 | **Lock-screen message** | Menu > Message → preset or custom text · "Return time" switch, − / + to step it or click the time to type any duration ("50", "1:30") — counted from when you lock |
 | **Moving icon** | Menu > Moving icon → emoji, ⋯ to search all emoji, or 🖼 for your own image · Size: Small / Medium / Large |
-| **Quick toggles** | Menu > tiles: Stay awake, Intruder photo, Updates · right-click Intruder for the photos folder, Updates to check now |
+| **Quick toggles** | Menu > tiles: Music & video (pauses on lock / keeps playing), Stay awake, Intruder photo, Updates · right-click Intruder for the photos folder, Updates to check now |
 | **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
 | **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
 | **Updates** | Menu > "Update automatically" toggle (on by default) · "Check now" |
