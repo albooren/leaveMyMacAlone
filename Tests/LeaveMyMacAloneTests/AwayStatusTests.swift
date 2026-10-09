@@ -8,9 +8,15 @@ final class AwayStatusTests: XCTestCase {
         calendar.date(from: DateComponents(year: 2026, month: 10, day: 9, hour: hour, minute: minute))!
     }
 
-    func testNonePresetShowsNothing() {
-        XCTAssertNil(AwayStatus.resolve(preset: .none, customText: "x", returnInMinutes: 30,
+    func testNonePresetWithoutReturnShowsNothing() {
+        XCTAssertNil(AwayStatus.resolve(preset: .none, customText: "x", returnInMinutes: 0,
                                         lockedAt: date(14, 0), calendar: calendar))
+    }
+
+    func testNonePresetStillShowsReturnTime() {
+        let status = AwayStatus.resolve(preset: .none, customText: "x", returnInMinutes: 30,
+                                        lockedAt: date(14, 0), calendar: calendar)
+        XCTAssertEqual(status, AwayStatus(headline: nil, returnTime: date(14, 30)))
     }
 
     func testPresetWithoutReturnTime() {

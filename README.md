@@ -85,7 +85,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (64 tests)
+swift build && swift test     # build + tests (65 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds

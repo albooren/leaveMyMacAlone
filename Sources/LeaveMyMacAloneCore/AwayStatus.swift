@@ -39,7 +39,7 @@ public struct AwayStatus: Equatable, Sendable {
         let headline: Headline?
         switch preset {
         case .none:
-            return nil
+            headline = nil   // no message, but a return time can still be shown
         case .custom:
             let text = String(customText.trimmingCharacters(in: .whitespacesAndNewlines)
                 .prefix(maxCustomLength))
