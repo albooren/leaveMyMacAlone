@@ -17,9 +17,9 @@ public enum FloatingIconSize: String, CaseIterable, Sendable {
     /// Edge length on the real lock screen.
     public var lockScreenPoints: Double {
         switch self {
-        case .small: return 64
-        case .medium: return 96
-        case .large: return 144
+        case .small: return 104
+        case .medium: return 144
+        case .large: return 200
         }
     }
 

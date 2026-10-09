@@ -115,8 +115,10 @@ final class FloatingIconSizeTests: XCTestCase {
         XCTAssertEqual(FloatingIconSize.allCases.count, 3)
     }
 
-    func testMediumMatchesThePreviousFixedSize() {
-        XCTAssertEqual(FloatingIconSize.medium.lockScreenPoints, 96)
+    func testSizesAreLargeEnoughToNotice() {
+        XCTAssertEqual(FloatingIconSize.small.lockScreenPoints, 104)
+        XCTAssertEqual(FloatingIconSize.medium.lockScreenPoints, 144)
+        XCTAssertEqual(FloatingIconSize.large.lockScreenPoints, 200)
     }
 
     func testPreviewIsAScaledDownLockScreen() {
