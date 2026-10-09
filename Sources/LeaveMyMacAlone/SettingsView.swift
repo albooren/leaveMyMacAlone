@@ -48,20 +48,16 @@ struct SettingsView: View {
                         .font(.caption)
                         .padding(.horizontal, 9)
                         .padding(.vertical, 5)
-                        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+                        .glassSurface(Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(14)
         .frame(width: 300)
-        // The panel window is borderless/clear, so the card draws its own frosted
-        // background + rounded corners (matches a native menu-bar dropdown).
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
-        )
+        // The panel window is borderless/clear, so the panel draws its own
+        // surface: Liquid Glass (material on macOS 14–15).
+        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), fallback: .regularMaterial)
     }
 }
 
@@ -157,7 +153,7 @@ private struct Pill: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
-            .background(.white.opacity(0.16), in: Capsule())
+            .glassSurface(Capsule())
     }
 }
 
@@ -198,14 +194,14 @@ private struct LockNowButton: View {
                     .font(.system(size: 11, weight: .medium))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(nsColor: .windowBackgroundColor).opacity(0.15),
-                                in: RoundedRectangle(cornerRadius: 5))
+                    .background(.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 5))
                     .padding(.leading, 4)
             }
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(Color(nsColor: .windowBackgroundColor))
+            .foregroundStyle(.white)
             .frame(maxWidth: .infinity, minHeight: 46)
-            .background(Color.primary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .glassSurface(RoundedRectangle(cornerRadius: 16, style: .continuous),
+                          tint: .accentColor, interactive: true)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
@@ -239,6 +235,7 @@ private struct MessageCard: View {
                     }
                 }
             }
+            .glassGrouped(spacing: 6)
 
             if store.awayPreset == .custom {
                 VStack(alignment: .leading, spacing: 4) {
@@ -380,8 +377,8 @@ private struct StepButton: View {
             Image(systemName: systemImage)
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: 36, height: 36)
-                .background(Color.primary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                .contentShape(Rectangle())
+                .glassSurface(Circle(), interactive: true)
+                .contentShape(Circle())
         }
         .buttonStyle(PressableStyle())
         .help(label)
@@ -454,6 +451,7 @@ private struct FloatingIconCard: View {
                     }
                 }
             }
+            .glassGrouped(spacing: 6)
 
             if showingPicker {
                 EmojiPicker { emoji in
@@ -601,12 +599,12 @@ private struct IconTile<Content: View>: View {
         Button(action: action) {
             content()
                 .frame(maxWidth: .infinity, minHeight: 36)
-                .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 9))
-                .background(selected ? Color.accentColor.opacity(0.25) : .clear,
-                            in: RoundedRectangle(cornerRadius: 9))
+                .glassSurface(RoundedRectangle(cornerRadius: 10, style: .continuous),
+                              tint: selected ? Color.accentColor.opacity(0.45) : nil,
+                              interactive: true)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 9)
-                        .strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(selected ? Color.accentColor : .clear, lineWidth: 1.5)
                 )
                 .contentShape(Rectangle())
         }
@@ -652,6 +650,7 @@ private struct QuickToggles: View {
                 Button("Şimdi kontrol et", action: onCheckForUpdates)
             }
         }
+        .glassGrouped(spacing: 8)
     }
 }
 
@@ -684,7 +683,7 @@ private struct ToggleTile: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .glassSurface(RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
@@ -734,8 +733,7 @@ private struct ChipButton: View {
             .foregroundStyle(selected ? Color.white : Color.primary.opacity(0.85))
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(selected ? Color.accentColor : .clear, in: Capsule())
-            .overlay(Capsule().strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.2)))
+            .glassSurface(Capsule(), tint: selected ? .accentColor : nil, interactive: true)
             .contentShape(Capsule())
         }
         .buttonStyle(PressableStyle())

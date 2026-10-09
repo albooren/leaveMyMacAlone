@@ -23,7 +23,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 📸 **Intruder capture** *(opt-in)* — snaps a front-camera photo if someone keeps trying to get past the lock; saved to `~/Pictures/LeaveMyMacAlone/`, with a notification on unlock that opens the folder.
 - 🖥️ **Covers full-screen apps** — locking from inside a full-screen app (Slack, Safari, a video) pulls it out of full-screen so the lock actually covers the screen.
 - 🪶 **Lean permissions** — Accessibility for the lock (asked the first time you lock); Camera + Notifications only if you turn on intruder capture.
-- 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch.
+- 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch. Liquid Glass design on macOS 26+ (materials on 14–15).
 - 🔄 **Automatic updates** — new versions download in the background, are verified (EdDSA signature + Developer ID), and install with a quick relaunch — never while the Mac is locked. Can be turned off in the menu.
 - 🆘 **SSH kill switch** — recover remotely with `killall` if it ever hangs.
 - 🌍 Turkish + English UI (follows the system language).
