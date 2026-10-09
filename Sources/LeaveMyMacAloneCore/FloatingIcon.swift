@@ -8,6 +8,28 @@ public enum FloatingIconKind: String, CaseIterable, Sendable {
     case image
 }
 
+/// How big the drifting icon is. Raw values are persisted.
+public enum FloatingIconSize: String, CaseIterable, Sendable {
+    case small
+    case medium
+    case large
+
+    /// Edge length on the real lock screen.
+    public var lockScreenPoints: Double {
+        switch self {
+        case .small: return 64
+        case .medium: return 96
+        case .large: return 144
+        }
+    }
+
+    /// Edge length in the menu's mini preview (the preview is roughly a
+    /// quarter-scale lock screen; never so small the icon is unreadable).
+    public var previewPoints: Double {
+        max(12, (lockScreenPoints * 0.23).rounded())
+    }
+}
+
 /// DVD-screensaver motion along one axis: constant speed, reflecting off both
 /// edges. Stateless (a triangle wave of elapsed time) so a view can compute the
 /// position for any frame without carrying velocity state between frames.

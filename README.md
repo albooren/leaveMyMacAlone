@@ -44,7 +44,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
 | **Lock-screen message** | Menu > Message → preset or custom text · "Return time" switch, − / + to step it or click the time to type any duration ("50", "1:30") — counted from when you lock |
-| **Moving icon** | Menu > Moving icon → emoji, ⋯ to search all emoji, or 🖼 for your own image |
+| **Moving icon** | Menu > Moving icon → emoji, ⋯ to search all emoji, or 🖼 for your own image · Size: Small / Medium / Large |
 | **Quick toggles** | Menu > tiles: Stay awake, Intruder photo, Updates · right-click Intruder for the photos folder, Updates to check now |
 | **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
 | **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
@@ -85,7 +85,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (65 tests)
+swift build && swift test     # build + tests (68 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds

@@ -44,6 +44,7 @@ final class OverlayModel: ObservableObject {
     @Published var away: AwayStatus?
     // Icon drifting DVD-style across the shield; nil = none.
     @Published var floating: FloatingIcon?
+    @Published var floatingSize: FloatingIconSize = .medium
 
     init(opacity: Double) {
         self.opacity = opacity
@@ -143,7 +144,7 @@ struct OverlayView: View {
                 .ignoresSafeArea()
 
             if let icon = model.floating, model.revealed, !model.unlocking {
-                BouncingIconView(icon: icon, size: 96, speed: 130)
+                BouncingIconView(icon: icon, size: model.floatingSize.lockScreenPoints, speed: 130)
                     .transition(.opacity)
             }
 
@@ -258,6 +259,7 @@ final class ShieldController {
     func show(opacity: Double,
               away: AwayStatus?,
               floating: FloatingIcon?,
+              floatingSize: FloatingIconSize,
               onInteract: @escaping () -> Void,
               onUnlock: @escaping () -> Void) {
         // Abort any in-flight exit animation from a previous cycle.
@@ -271,6 +273,7 @@ final class ShieldController {
         model.opacity = opacity
         model.away = away
         model.floating = floating
+        model.floatingSize = floatingSize
         model.unlocking = false
         model.revealed = false
         isShown = true

@@ -86,7 +86,7 @@ private struct MiniLockPreview: View {
             .overlay(content)
             .overlay {
                 if let icon = previewIcon {
-                    BouncingIconView(icon: icon, size: 22, speed: 34)
+                    BouncingIconView(icon: icon, size: store.floatingSize.previewPoints, speed: 34)
                         .padding(6)
                         // Restart the drift when the icon changes.
                         .id(iconIdentity)
@@ -137,7 +137,7 @@ private struct MiniLockPreview: View {
     }
 
     private var iconIdentity: String {
-        "\(store.floatingKind.rawValue)|\(store.floatingEmoji)|\(store.floatingImageName ?? "")"
+        "\(store.floatingKind.rawValue)|\(store.floatingEmoji)|\(store.floatingImageName ?? "")|\(store.floatingSize.rawValue)"
     }
 
     private func headlineText(_ headline: AwayStatus.Headline) -> Text {
@@ -483,6 +483,23 @@ private struct FloatingIconCard: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
                 .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 8))
+            }
+
+            if store.floatingKind != .none {
+                HStack(spacing: 8) {
+                    Text("Boyut")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 50, alignment: .leading)
+                    Picker("Boyut", selection: $store.floatingSize) {
+                        Text("Küçük").tag(FloatingIconSize.small)
+                        Text("Orta").tag(FloatingIconSize.medium)
+                        Text("Büyük").tag(FloatingIconSize.large)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .controlSize(.small)
+                }
             }
 
             HStack(spacing: 8) {

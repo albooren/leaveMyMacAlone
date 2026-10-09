@@ -17,6 +17,7 @@ final class AppSettingsStore: ObservableObject {
     static let floatingKindKey = "floatingIconKind"
     static let floatingEmojiKey = "floatingEmoji"
     static let floatingImageNameKey = "floatingImageName"
+    static let floatingSizeKey = "floatingIconSize"
 
     /// Notified on every committed change so a live consumer (the shield
     /// window) can update its alpha while the user drags the slider.
@@ -108,6 +109,15 @@ final class AppSettingsStore: ObservableObject {
         floatingKind = storedKind.flatMap(FloatingIconKind.init(rawValue:)) ?? .none
         floatingEmoji = UserDefaults.standard.string(forKey: Self.floatingEmojiKey) ?? "☕"
         floatingImageName = UserDefaults.standard.string(forKey: Self.floatingImageNameKey)
+        let storedSize = UserDefaults.standard.string(forKey: Self.floatingSizeKey)
+        floatingSize = storedSize.flatMap(FloatingIconSize.init(rawValue:)) ?? .medium
+    }
+
+    /// How big the drifting icon is.
+    @Published var floatingSize: FloatingIconSize {
+        didSet {
+            UserDefaults.standard.set(floatingSize.rawValue, forKey: Self.floatingSizeKey)
+        }
     }
 
     /// What drifts around the lock screen.

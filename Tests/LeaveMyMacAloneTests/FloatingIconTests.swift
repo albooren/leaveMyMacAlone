@@ -107,3 +107,22 @@ final class EmojiCatalogTests: XCTestCase {
         XCTAssertEqual(EmojiCatalog.search("").count, EmojiCatalog.all.count)
     }
 }
+
+final class FloatingIconSizeTests: XCTestCase {
+    func testSizesGrowInOrder() {
+        let points = FloatingIconSize.allCases.map(\.lockScreenPoints)
+        XCTAssertEqual(points, points.sorted())
+        XCTAssertEqual(FloatingIconSize.allCases.count, 3)
+    }
+
+    func testMediumMatchesThePreviousFixedSize() {
+        XCTAssertEqual(FloatingIconSize.medium.lockScreenPoints, 96)
+    }
+
+    func testPreviewIsAScaledDownLockScreen() {
+        for size in FloatingIconSize.allCases {
+            XCTAssertLessThan(size.previewPoints, size.lockScreenPoints)
+            XCTAssertGreaterThanOrEqual(size.previewPoints, 12)
+        }
+    }
+}

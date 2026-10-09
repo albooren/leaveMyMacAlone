@@ -12,8 +12,8 @@ enum FloatingIcon {
 /// The user's own floating image. Imported once into Application Support
 /// (downscaled PNG), so the original can move or be deleted.
 enum FloatingImageStore {
-    /// Longest edge in pixels: 2× the largest size it is drawn at (96 pt).
-    private static let maxPixels: CGFloat = 192
+    /// Longest edge in pixels: 2× the largest size it is drawn at.
+    private static let maxPixels = CGFloat(FloatingIconSize.large.lockScreenPoints * 2)
 
     static var url: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
