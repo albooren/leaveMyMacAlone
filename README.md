@@ -20,6 +20,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 🖥️ **Covers full-screen apps** — locking from inside a full-screen app (Slack, Safari, a video) pulls it out of full-screen so the lock actually covers the screen.
 - 🪶 **Lean permissions** — Accessibility for the lock (asked the first time you lock); Camera + Notifications only if you turn on intruder capture.
 - 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch.
+- 🔄 **Automatic updates** — new versions download in the background, are verified (EdDSA signature + Developer ID), and install with a quick relaunch — never while the Mac is locked. Can be turned off in the menu.
 - 🆘 **SSH kill switch** — recover remotely with `killall` if it ever hangs.
 - 🌍 Turkish + English UI (follows the system language).
 
@@ -40,6 +41,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
 | **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
 | **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
+| **Updates** | Menu > "Update automatically" toggle (on by default) · "Check now" |
 | **Quit** | Menu > Quit |
 
 ## 🆘 Recovery if it hangs (SSH kill switch)
@@ -76,7 +78,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (33 tests)
+swift build && swift test     # build + tests (37 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds
@@ -94,9 +96,13 @@ it automatically) and the Accessibility grant survives rebuilds.
 - It stops a prankster co-worker; it is not a military-grade lock.
 
 ## 🔐 Privacy
-No network access, no data collection. LocalAuthentication for Touch ID/password,
-IOKit to keep awake, a CoreGraphics event tap to block input. Intruder photos (opt-in)
-are saved only to `~/Pictures/LeaveMyMacAlone/` on your Mac — never uploaded. All local.
+No data collection. The only network request is the update check: a daily
+download of the public `appcast.xml` from this repo's GitHub releases (and the
+new version, when there is one) — nothing about you or your Mac is sent. Turn
+off "Update automatically" in the menu and the app makes no requests unless you
+press "Check now". LocalAuthentication for Touch ID/password, IOKit to keep awake,
+a CoreGraphics event tap to block input, [Sparkle](https://sparkle-project.org) for
+updates. Intruder photos (opt-in) are saved only to `~/Pictures/LeaveMyMacAlone/` on your Mac — never uploaded. All local.
 
 ## 📄 License
 [MIT](LICENSE) © 2026 Alperen Kişi

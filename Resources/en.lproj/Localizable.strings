@@ -33,3 +33,6 @@
 "Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik > Erişilebilirlik bölümünden LeaveMyMacAlone'a izin verildiğinden emin ol, sonra tekrar kilitle." = "Input blocking couldn’t be enabled, so the lock was removed. In System Settings > Privacy & Security > Accessibility, make sure LeaveMyMacAlone is allowed, then lock again.";
 "İzinsiz giriş tespit edildi" = "Intruder detected";
 "%d izinsiz giriş fotoğrafı çekildi." = "%d intruder photo(s) captured.";
+"Otomatik güncelle" = "Update automatically";
+"Yeni sürümler arka planda indirilir ve kilit açıkken kurulur." = "New versions download in the background and install while unlocked.";
+"Şimdi kontrol et" = "Check now";

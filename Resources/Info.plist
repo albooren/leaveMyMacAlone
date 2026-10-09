@@ -35,6 +35,21 @@
     <string>Copyright © 2026 Alperen Kisi. All rights reserved.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Mac'in kilidini açmak için Touch ID kullanılır.</string>
+    <!-- Sparkle auto-update. The feed is the appcast.xml attached to the latest
+         GitHub release; updates are verified against this EdDSA public key (the
+         private key lives in the release machine's Keychain) and the Developer ID.
+         Checks + silent downloads are on by default (the user can turn them off
+         in the menu), so Sparkle does not show its first-run permission prompt. -->
+    <key>SUFeedURL</key>
+    <string>https://github.com/albooren/leaveMyMacAlone/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>g++Tx5koWJG5ktu53Pd87OpsigWNgqBOn+PsZi1MtoQ=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUAutomaticallyUpdate</key>
+    <true/>
+    <key>SUScheduledCheckInterval</key>
+    <integer>86400</integer>
     <key>NSCameraUsageDescription</key>
     <string>Kilidi açmaya çalışan kişinin fotoğrafını çekmek için kamera kullanılır.</string>
 </dict>

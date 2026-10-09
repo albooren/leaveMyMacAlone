@@ -26,6 +26,7 @@ private struct CircleIconButtonStyle: ButtonStyle {
 
 struct SettingsView: View {
     @ObservedObject var store: AppSettingsStore
+    @ObservedObject var updates: UpdateController
     let onLockNow: () -> Void
     let onQuit: () -> Void
     // true while the user is dragging the opacity slider; drives the live preview.
@@ -34,6 +35,8 @@ struct SettingsView: View {
     let onCaptureIntruderEnabled: () -> Void
     // Open the captured-photos folder in Finder.
     let onOpenIntruderPhotos: () -> Void
+    // User-initiated update check (Sparkle's standard UI).
+    let onCheckForUpdates: () -> Void
 
     private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
 
@@ -123,6 +126,34 @@ struct SettingsView: View {
 
             Divider()
 
+            // Automatic updates: toggle + a manual check and the running version.
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Otomatik güncelle")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Yeni sürümler arka planda indirilir ve kilit açıkken kurulur.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Toggle("", isOn: $updates.automaticallyUpdates)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                HStack {
+                    Button("Şimdi kontrol et", action: onCheckForUpdates)
+                        .buttonStyle(.link)
+                        .font(.caption)
+                    Spacer()
+                    Text(verbatim: "v\(UpdateController.currentVersion)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            Divider()
+
             // Actions: round icon buttons side by side — lock (primary, filled)
             // and quit (secondary, frosted).
             HStack(spacing: 20) {
@@ -172,14 +203,16 @@ final class MenuBarController {
     var onQuit: () -> Void = {}
 
     private let store: AppSettingsStore
+    private let updates: UpdateController
     private let statusItem: NSStatusItem
     private let preview: PreviewOverlayController
     private var panel: KeyablePanel?
     private var globalClickMonitor: Any?
     private var localKeyMonitor: Any?
 
-    init(store: AppSettingsStore) {
+    init(store: AppSettingsStore, updates: UpdateController) {
         self.store = store
+        self.updates = updates
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.preview = PreviewOverlayController(store: store)
         configureStatusButton()
@@ -245,6 +278,7 @@ final class MenuBarController {
 
         let root = SettingsView(
             store: store,
+            updates: updates,
             onLockNow: { [weak self] in self?.closePanel(); self?.onLockNow() },
             onQuit: { [weak self] in self?.closePanel(); self?.onQuit() },
             onSliderEditing: { [weak self] editing in
@@ -252,7 +286,11 @@ final class MenuBarController {
                 if editing { self?.preview.start() } else { self?.preview.stop() }
             },
             onCaptureIntruderEnabled: { [weak self] in self?.primeIntruderPermissions() },
-            onOpenIntruderPhotos: { IntruderCapture.openPhotosFolder() }
+            onOpenIntruderPhotos: { IntruderCapture.openPhotosFolder() },
+            onCheckForUpdates: { [weak self] in
+                self?.closePanel()
+                self?.updates.checkForUpdates()
+            }
         )
         let hosting = FirstMouseHostingView(rootView: root)
         hosting.layoutSubtreeIfNeeded()
