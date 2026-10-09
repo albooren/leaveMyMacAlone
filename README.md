@@ -16,7 +16,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 👆 **Touch ID / password** to unlock (Unlock button, or Space / Enter).
 - 🌗 **Adjustable darkness** — from a light tint to fully opaque; live preview while dragging.
 - 💬 **Lock-screen status** — tell passers-by where you are ("In a meeting", "At lunch", "Back soon" or your own text) and, optionally, when you'll be back.
-- 📀 **Moving icon** — an emoji (any, via the system picker) or your own image drifts across the lock screen like the old DVD screensaver.
+- 📀 **Moving icon** — an emoji (any — searchable picker right in the menu) or your own image drifts across the lock screen like the old DVD screensaver.
 - 👀 **Live preview** — the menu shows a mini lock screen with your darkness, message, return time and icon as you change them.
 - ⏸️ **Pauses media** — music and videos always pause the moment you lock, so nothing keeps playing at an empty desk (not auto-resumed).
 - ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
@@ -44,7 +44,7 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
 | **Lock-screen message** | Menu > Message → preset or custom text · "Return time" switch, − / + to step it or click the time to type any duration ("50", "1:30") — counted from when you lock |
-| **Moving icon** | Menu > Moving icon → emoji, ⋯ for any emoji, or 🖼 for your own image |
+| **Moving icon** | Menu > Moving icon → emoji, ⋯ to search all emoji, or 🖼 for your own image |
 | **Quick toggles** | Menu > tiles: Stay awake, Intruder photo, Updates · right-click Intruder for the photos folder, Updates to check now |
 | **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
 | **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
@@ -85,7 +85,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (61 tests)
+swift build && swift test     # build + tests (64 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds

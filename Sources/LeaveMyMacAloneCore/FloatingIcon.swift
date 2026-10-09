@@ -1,3 +1,4 @@
+import CoreText
 import Foundation
 
 /// What drifts around the lock screen, DVD-screensaver style. Raw values are persisted.
@@ -71,18 +72,59 @@ public enum ReturnTimeSteps {
     }
 }
 
-/// Picks an emoji out of whatever the system character palette typed into a field.
-public enum EmojiInput {
-    public static func firstEmoji(in text: String) -> String? {
-        text.first(where: isEmoji).map(String.init)
+/// Every single-character emoji the system knows, for the in-panel picker.
+///
+/// Built from Unicode properties rather than a bundled list, so it needs no
+/// data file. Faces come first, then the pictograph blocks. Searching matches
+/// the (English) Unicode name: "cat", "pizza", "heart".
+public enum EmojiCatalog {
+    private struct Entry {
+        let emoji: String
+        let name: String
     }
 
-    private static func isEmoji(_ character: Character) -> Bool {
-        let scalars = character.unicodeScalars
-        guard let first = scalars.first else { return false }
-        // Digits, '#' and '*' have the Emoji property but are plain text unless
-        // followed by the emoji variation selector / keycap.
-        if first.properties.isEmojiPresentation { return true }
-        return first.properties.isEmoji && scalars.count > 1
+    // Order = display order: faces & people, then the other pictograph blocks.
+    private static let blocks: [ClosedRange<UInt32>] = [
+        0x1F600...0x1F64F,   // emoticons (faces)
+        0x1F910...0x1F9FF,   // supplemental symbols & pictographs
+        0x1F300...0x1F5FF,   // misc symbols & pictographs
+        0x1F680...0x1F6FF,   // transport & map
+        0x1FA70...0x1FAFF,   // symbols & pictographs extended-A
+        0x2600...0x27BF,     // misc symbols, dingbats
+        0x2300...0x23FF,     // misc technical (⌚ ⏰ …)
+        0x2B00...0x2BFF      // arrows & stars (⭐ …)
+    ]
+
+    private static let entries: [Entry] = {
+        // Newer emoji than this macOS knows would draw as empty boxes; skip them.
+        let font = CTFontCreateWithName("AppleColorEmoji" as CFString, 20, nil)
+        func canDraw(_ scalar: Unicode.Scalar) -> Bool {
+            let utf16 = Array(String(scalar).utf16)
+            var glyphs = [CGGlyph](repeating: 0, count: utf16.count)
+            return CTFontGetGlyphsForCharacters(font, utf16, &glyphs, utf16.count)
+        }
+        var seen = Set<String>()
+        var result: [Entry] = []
+        for block in blocks {
+            for value in block {
+                guard let scalar = Unicode.Scalar(value) else { continue }
+                let props = scalar.properties
+                // Skin-tone modifiers only make sense attached to another emoji.
+                guard props.isEmoji, !props.isEmojiModifier, canDraw(scalar) else { continue }
+                // Text-default symbols (❤, ☀) need VS16 to draw as emoji.
+                let emoji = props.isEmojiPresentation ? String(scalar) : String(scalar) + "\u{FE0F}"
+                guard seen.insert(emoji).inserted else { continue }
+                result.append(Entry(emoji: emoji, name: (props.name ?? "").lowercased()))
+            }
+        }
+        return result
+    }()
+
+    public static let all: [String] = entries.map(\.emoji)
+
+    public static func search(_ query: String) -> [String] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return all }
+        return entries.filter { $0.name.contains(q) }.map(\.emoji)
     }
 }

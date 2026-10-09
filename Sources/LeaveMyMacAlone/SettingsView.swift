@@ -398,9 +398,7 @@ private struct FloatingIconCard: View {
 
     static let presetEmojis = ["☕", "🍔", "🎧", "💤", "👋", "🚀", "🐱", "🌴", "🏃"]
 
-    @State private var showingEmojiField = false
-    @State private var emojiInput = ""
-    @FocusState private var emojiFieldFocused: Bool
+    @State private var showingPicker = false
 
     private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
 
@@ -434,15 +432,16 @@ private struct FloatingIconCard: View {
                         store.floatingKind = .emoji
                     }
                 }
-                IconTile(selected: store.floatingKind == .emoji && customEmoji != nil,
+                IconTile(selected: showingPicker || (store.floatingKind == .emoji && customEmoji != nil),
                          label: "Diğer emojiler") {
-                    if let custom = customEmoji {
+                    if let custom = customEmoji, !showingPicker {
                         Text(verbatim: custom).font(.system(size: 19))
                     } else {
-                        Image(systemName: "ellipsis").foregroundStyle(.secondary)
+                        Image(systemName: showingPicker ? "chevron.up" : "ellipsis")
+                            .foregroundStyle(.secondary)
                     }
                 } action: {
-                    openEmojiPalette()
+                    showingPicker.toggle()
                 }
                 IconTile(selected: store.floatingKind == .image, label: "Görsel") {
                     Image(systemName: "photo")
@@ -456,17 +455,12 @@ private struct FloatingIconCard: View {
                 }
             }
 
-            if showingEmojiField {
-                TextField("Bir emoji seç veya yaz", text: $emojiInput)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($emojiFieldFocused)
-                    .onChange(of: emojiInput) { _, text in
-                        guard let emoji = EmojiInput.firstEmoji(in: text) else { return }
-                        store.floatingEmoji = emoji
-                        store.floatingKind = .emoji
-                        emojiInput = ""
-                        showingEmojiField = false
-                    }
+            if showingPicker {
+                EmojiPicker { emoji in
+                    store.floatingEmoji = emoji
+                    store.floatingKind = .emoji
+                    showingPicker = false
+                }
             }
 
             if store.floatingKind == .image, let name = store.floatingImageName {
@@ -516,14 +510,67 @@ private struct FloatingIconCard: View {
         }
     }
 
-    /// Show a small field, focus it and open the system Emoji & Symbols palette;
-    /// whatever emoji the user picks lands in the field and becomes the icon.
-    private func openEmojiPalette() {
-        showingEmojiField = true
-        DispatchQueue.main.async {
-            emojiFieldFocused = true
-            NSApp.orderFrontCharacterPalette(nil)
+}
+
+/// The full emoji set, searchable, inside the panel. (The system Emoji &
+/// Symbols window can't be used: it lives in another process — clicking it
+/// dismisses this panel — and it types into the *active* app, which this
+/// non-activating panel never is, so the pick would be lost.)
+private struct EmojiPicker: View {
+    let onPick: (String) -> Void
+
+    @State private var query = ""
+    @FocusState private var searchFocused: Bool
+
+    private var results: [String] { EmojiCatalog.search(query) }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                TextField("Ara (İngilizce: cat, pizza, heart)", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .focused($searchFocused)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 26)
+            .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 8), spacing: 2) {
+                    ForEach(results, id: \.self) { emoji in
+                        Button { onPick(emoji) } label: {
+                            Text(verbatim: emoji)
+                                .font(.system(size: 20))
+                                .frame(maxWidth: .infinity, minHeight: 30)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(EmojiCellStyle())
+                    }
+                }
+                if results.isEmpty {
+                    Text("Sonuç yok")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 20)
+                }
+            }
+            .frame(height: 168)
         }
+        .padding(6)
+        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onAppear { searchFocused = true }
+    }
+}
+
+private struct EmojiCellStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Color.accentColor.opacity(0.3) : .clear,
+                        in: RoundedRectangle(cornerRadius: 6))
     }
 }
 

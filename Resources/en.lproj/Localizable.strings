@@ -59,7 +59,6 @@
 "Simge yok" = "No icon";
 "Diğer emojiler" = "More emoji";
 "Görsel" = "Image";
-"Bir emoji seç veya yaz" = "Pick or type an emoji";
 "Değiştir" = "Change";
 "Kapalı" = "Off";
 "Açık" = "On";
@@ -81,3 +80,5 @@
 "Dakika (en çok 12 sa)" = "Minutes (12 h max)";
 "Süreyi yaz, Enter'a bas" = "Type a duration, press Enter";
 "Süreyi elle yazmak için tıkla" = "Click to type a duration";
+"Ara (İngilizce: cat, pizza, heart)" = "Search (cat, pizza, heart)";
+"Sonuç yok" = "No results";

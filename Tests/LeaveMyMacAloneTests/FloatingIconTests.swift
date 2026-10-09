@@ -76,18 +76,34 @@ final class ReturnTimeStepsTests: XCTestCase {
     }
 }
 
-final class EmojiInputTests: XCTestCase {
-    func testPicksTheFirstEmoji() {
-        XCTAssertEqual(EmojiInput.firstEmoji(in: "ab🐶c🐱"), "🐶")
+final class EmojiCatalogTests: XCTestCase {
+    func testContainsCommonEmoji() {
+        for emoji in ["😀", "🍔", "🐱", "🚀", "☕", "❤️", "🦄"] {
+            XCTAssertTrue(EmojiCatalog.all.contains(emoji), emoji)
+        }
     }
 
-    func testKeepsMultiScalarEmojiWhole() {
-        XCTAssertEqual(EmojiInput.firstEmoji(in: "👩🏽‍💻"), "👩🏽‍💻")
-        XCTAssertEqual(EmojiInput.firstEmoji(in: "🇹🇷"), "🇹🇷")
+    func testFacesComeFirst() {
+        XCTAssertEqual(EmojiCatalog.all.first, "😀")
     }
 
-    func testIgnoresPlainTextAndDigits() {
-        XCTAssertNil(EmojiInput.firstEmoji(in: "hello 123 #"))
-        XCTAssertNil(EmojiInput.firstEmoji(in: ""))
+    func testExcludesNonStandaloneScalars() {
+        XCTAssertFalse(EmojiCatalog.all.contains("🇹"))   // regional indicator
+        XCTAssertFalse(EmojiCatalog.all.contains("🏽"))   // skin-tone modifier
+    }
+
+    func testHasNoDuplicatesAndIsLarge() {
+        XCTAssertEqual(Set(EmojiCatalog.all).count, EmojiCatalog.all.count)
+        XCTAssertGreaterThan(EmojiCatalog.all.count, 1000)
+    }
+
+    func testSearchesByName() {
+        XCTAssertTrue(EmojiCatalog.search("cat").contains("🐱"))
+        XCTAssertTrue(EmojiCatalog.search("  HAMBURGER ").contains("🍔"))
+        XCTAssertFalse(EmojiCatalog.search("hamburger").contains("😀"))
+    }
+
+    func testEmptySearchReturnsEverything() {
+        XCTAssertEqual(EmojiCatalog.search("").count, EmojiCatalog.all.count)
     }
 }
