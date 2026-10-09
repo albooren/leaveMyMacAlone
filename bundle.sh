@@ -87,8 +87,10 @@ sign "${SPARKLE}"
 # the same Team ID. A Developer ID build has one; the self-signed dev cert (and
 # ad-hoc) has none, so dyld would refuse Sparkle and the app dies at launch.
 # Dev builds therefore get disable-library-validation; release builds never do.
+# RELEASE_BUILD=1 (set by release.sh) forbids it outright, whatever form the
+# signing identity is given in (name, short name or SHA-1 hash).
 ENTITLEMENTS="${ROOT}/Resources/${APP_NAME}.entitlements"
-if [[ "${SIGN_IDENTITY}" != "Developer ID Application:"* ]]; then
+if [[ "${RELEASE_BUILD:-0}" != "1" && "${SIGN_IDENTITY}" != "Developer ID Application:"* ]]; then
     DEV_ENTITLEMENTS="$(mktemp -d)/dev.entitlements"
     cp "${ENTITLEMENTS}" "${DEV_ENTITLEMENTS}"
     /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "${DEV_ENTITLEMENTS}"

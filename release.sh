@@ -18,7 +18,21 @@ DMG="${ROOT}/${APP_NAME}.dmg"
 # component and the app with the Developer ID, hardened runtime and the secure
 # timestamp notarization requires (bundle.sh signs inside-out; never --deep).
 echo "==> Assembling + signing app (Developer ID)"
-SIGN_IDENTITY="${DEVELOPER_ID}" SIGN_TIMESTAMP=1 "${ROOT}/bundle.sh"
+RELEASE_BUILD=1 SIGN_IDENTITY="${DEVELOPER_ID}" SIGN_TIMESTAMP=1 "${ROOT}/bundle.sh"
+
+# Refuse to ship a weakened build: no dev-only entitlement, and a real Team ID
+# (a Developer ID signature, not the self-signed dev cert or ad-hoc).
+echo "==> Checking release signature"
+if codesign -d --entitlements - "${APP}" 2>/dev/null | grep -q "disable-library-validation"; then
+    echo "error: release build carries disable-library-validation — refusing to ship" >&2
+    exit 1
+fi
+TEAM_ID="$(codesign -dvv "${APP}" 2>&1 | sed -n 's/^TeamIdentifier=//p')"
+if [[ -z "${TEAM_ID}" || "${TEAM_ID}" == "not set" ]]; then
+    echo "error: release build has no Team ID (not Developer ID–signed) — refusing to ship" >&2
+    exit 1
+fi
+echo "Team ID: ${TEAM_ID}, library validation on"
 
 # 3) Build a compressed DMG with an Applications drop target.
 echo "==> Building DMG"
