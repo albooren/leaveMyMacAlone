@@ -26,10 +26,11 @@ struct SettingsView: View {
 
             LockNowButton(action: onLockNow)
 
+            DarknessCard(store: store, onSliderEditing: onSliderEditing)
+
             MessageCard(store: store)
 
             FloatingIconCard(store: store,
-                             onSliderEditing: onSliderEditing,
                              onChooseImage: onChooseImage)
 
             QuickToggles(store: store,
@@ -217,6 +218,40 @@ private struct PressableStyle: ButtonStyle {
     }
 }
 
+// MARK: - Darkness
+
+/// How dark the lock screen is. Dragging shows a full-screen live preview.
+private struct DarknessCard: View {
+    @ObservedObject var store: AppSettingsStore
+    let onSliderEditing: (Bool) -> Void
+
+    private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                SectionLabel("KOYULUK")
+                Spacer()
+                Text(verbatim: "\(opacityPercent)%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "sun.min.fill")
+                    .imageScale(.small)
+                    .foregroundStyle(.secondary)
+                Slider(value: $store.overlayOpacity, in: Transparency.range,
+                       onEditingChanged: onSliderEditing)
+                    .controlSize(.small)
+                Image(systemName: "moon.fill")
+                    .imageScale(.small)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .modifier(PanelCard())
+    }
+}
+
 // MARK: - Message
 
 private struct MessageCard: View {
@@ -390,14 +425,11 @@ private struct StepButton: View {
 
 private struct FloatingIconCard: View {
     @ObservedObject var store: AppSettingsStore
-    let onSliderEditing: (Bool) -> Void
     let onChooseImage: () -> Void
 
     static let presetEmojis = ["☕", "🍔", "🎧", "💤", "👋", "🚀", "🐱", "🌴", "🏃"]
 
     @State private var showingPicker = false
-
-    private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
 
     /// An emoji picked from the palette that isn't one of the presets.
     private var customEmoji: String? {
@@ -498,20 +530,6 @@ private struct FloatingIconCard: View {
                     .pickerStyle(.segmented)
                     .controlSize(.small)
                 }
-            }
-
-            HStack(spacing: 8) {
-                Text("Koyuluk")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 50, alignment: .leading)
-                Slider(value: $store.overlayOpacity, in: Transparency.range,
-                       onEditingChanged: onSliderEditing)
-                    .controlSize(.small)
-                Text(verbatim: "\(opacityPercent)%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 32, alignment: .trailing)
             }
         }
         .modifier(PanelCard())
