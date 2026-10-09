@@ -81,6 +81,58 @@ struct SettingsView: View {
 
             Divider()
 
+            // Lock-screen status for passers-by: preset or custom text, plus an
+            // optional "back at" time counted from the moment of locking.
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Kilit ekranı mesajı")
+                    .font(.subheadline.weight(.semibold))
+                Picker("Kilit ekranı mesajı", selection: $store.awayPreset) {
+                    ForEach(AwayPreset.allCases, id: \.self) { preset in
+                        Text(preset.title).tag(preset)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                if store.awayPreset == .custom {
+                    TextField("Örn. Kahve almaya gittim", text: $store.awayCustomText)
+                        .textFieldStyle(.roundedBorder)
+                }
+                if store.awayPreset != .none {
+                    Picker("Dönüş", selection: $store.awayReturnMinutes) {
+                        Text("Belirtme").tag(0)
+                        Text("15 dk sonra").tag(15)
+                        Text("30 dk sonra").tag(30)
+                        Text("1 saat sonra").tag(60)
+                        Text("2 saat sonra").tag(120)
+                    }
+                    .pickerStyle(.menu)
+                }
+                Text("Kilitliyken ekranda görünür; dönüş saati kilitlendiğin andan hesaplanır.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Divider()
+
+            // Pause audio/video at lock time.
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Kilitlenince medyayı duraklat")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Çalan müzik ve videolar durur, kilit açılınca kendiliğinden devam etmez.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Toggle("", isOn: $store.pauseMediaOnLock)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
+
+            Divider()
+
             // Whether to keep the Mac awake while it is locked. Lay it out as a
             // settings row: label on the leading edge, switch pinned trailing.
             HStack(alignment: .center, spacing: 12) {

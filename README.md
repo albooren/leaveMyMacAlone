@@ -15,6 +15,8 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 🔒 **One-tap lock** — "Lock Now" from the menu, or the **⌃⌥⌘L** hotkey.
 - 👆 **Touch ID / password** to unlock (Unlock button, or Space / Enter).
 - 🌗 **Adjustable darkness** — from a light tint to fully opaque; live preview while dragging.
+- 💬 **Lock-screen status** — tell passers-by where you are ("In a meeting", "At lunch", "Back soon" or your own text) and, optionally, when you'll be back.
+- ⏸️ **Pauses media** — music and videos pause the moment you lock, so nothing keeps playing at an empty desk (on by default; not auto-resumed).
 - ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
 - 📸 **Intruder capture** *(opt-in)* — snaps a front-camera photo if someone keeps trying to get past the lock; saved to `~/Pictures/LeaveMyMacAlone/`, with a notification on unlock that opens the folder.
 - 🖥️ **Covers full-screen apps** — locking from inside a full-screen app (Slack, Safari, a video) pulls it out of full-screen so the lock actually covers the screen.
@@ -39,6 +41,8 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Lock** | Menu > Lock Now · or **⌃⌥⌘L** |
 | **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
+| **Lock-screen message** | Menu > "Lock screen message" → preset or custom text · optional "Back" time (counted from when you lock) |
+| **Pause media** | Menu > "Pause media when locking" toggle (on by default) |
 | **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
 | **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
 | **Updates** | Menu > "Update automatically" toggle (on by default) · "Check now" |
@@ -78,7 +82,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (37 tests)
+swift build && swift test     # build + tests (45 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds

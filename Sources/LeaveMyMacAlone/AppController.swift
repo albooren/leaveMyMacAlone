@@ -123,6 +123,11 @@ final class AppController {
         // so the lock lands on a Desktop Space the shield covers. No-op otherwise.
         FullScreenExiter.exitFrontmostFullScreen()
         intruder.beginSession(enabled: store.captureIntruderPhoto)
+        // Stop audio/video so nothing keeps playing (or leaking sound) at an
+        // unattended desk. Not resumed on unlock: the owner decides that.
+        if store.pauseMediaOnLock {
+            MediaPauser.pauseNowPlaying()
+        }
         // Keep the Mac awake while locked only if the user wants it (default on);
         // sleepGuard.end() on teardown is a no-op if we never began.
         if store.preventSleepWhileLocked {
@@ -132,7 +137,7 @@ final class AppController {
         // anywhere else on the shield → flash "still locked" while locked, or
         // re-present a buried auth sheet while authenticating (tap-independent
         // recovery, so a covering window can never strand the user).
-        shield.show(opacity: store.overlayOpacity, onInteract: { [weak self] in
+        shield.show(opacity: store.overlayOpacity, away: store.awayStatus(), onInteract: { [weak self] in
             guard let self else { return }
             Task { @MainActor in self.handleBackgroundClick() }
         }, onUnlock: { [weak self] in
