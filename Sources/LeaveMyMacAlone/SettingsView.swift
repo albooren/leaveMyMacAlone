@@ -40,13 +40,18 @@ struct SettingsView: View {
                          onCheckForUpdates: onCheckForUpdates)
 
             HStack {
-                Button("Güncellemeleri kontrol et", action: onCheckForUpdates)
-                    .buttonStyle(.link)
-                    .font(.caption)
+                Button(action: onCheckForUpdates) {
+                    Label("Güncellemeleri kontrol et", systemImage: "arrow.down.circle")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .glassSurface(Capsule(), interactive: true)
+                }
+                .buttonStyle(.plain)
                 Spacer()
                 Button(action: onQuit) {
                     Label("Çık", systemImage: "power")
-                        .font(.caption)
+                        .font(.caption.weight(.medium))
                         .padding(.horizontal, 9)
                         .padding(.vertical, 5)
                         .glassSurface(Capsule(), interactive: true)
