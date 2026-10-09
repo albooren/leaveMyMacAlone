@@ -4,165 +4,23 @@ import SwiftUI
 import UserNotifications
 import LeaveMyMacAloneCore
 
-// Round icon button for the panel actions. `prominent` = filled white circle
-// with a dark glyph (primary action); otherwise a frosted circle with a white
-// glyph (secondary). Avoids the system accent (blue) to match the dark panel.
-private struct CircleIconButtonStyle: ButtonStyle {
-    let prominent: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 19, weight: .semibold))
-            .foregroundStyle(prominent ? AnyShapeStyle(.black) : AnyShapeStyle(.white))
-            .frame(width: 52, height: 52)
-            .background(prominent ? AnyShapeStyle(.white) : AnyShapeStyle(.ultraThinMaterial),
-                        in: Circle())
-            .overlay(Circle().strokeBorder(.white.opacity(prominent ? 0 : 0.25), lineWidth: 1))
-            .scaleEffect(configuration.isPressed ? 0.92 : 1)
-            .opacity(configuration.isPressed ? 0.85 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-struct SettingsView: View {
-    @ObservedObject var store: AppSettingsStore
-    let onLockNow: () -> Void
-    let onQuit: () -> Void
-    // true while the user is dragging the opacity slider; drives the live preview.
-    let onSliderEditing: (Bool) -> Void
-    // Called when the user turns the intruder-capture toggle ON (prime perms).
-    let onCaptureIntruderEnabled: () -> Void
-    // Open the captured-photos folder in Finder.
-    let onOpenIntruderPhotos: () -> Void
-
-    private var opacityPercent: Int { Int((store.overlayOpacity * 100).rounded()) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Identity header (centered: app icon + name).
-            HStack(spacing: 9) {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable()
-                    .frame(width: 30, height: 30)
-                Text("LeaveMyMacAlone")
-                    .font(.headline)
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-
-            Divider()
-
-            // Transparency control with live value and end markers.
-            VStack(alignment: .leading, spacing: 9) {
-                HStack {
-                    Text("Koyuluk")
-                        .font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Text("\(opacityPercent)%")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                HStack(spacing: 9) {
-                    Image(systemName: "sun.min.fill")
-                        .imageScale(.small)
-                        .foregroundStyle(.secondary)
-                    Slider(value: $store.overlayOpacity, in: Transparency.range,
-                           onEditingChanged: onSliderEditing)
-                    Image(systemName: "moon.fill")
-                        .imageScale(.small)
-                        .foregroundStyle(.secondary)
-                }
-                Text("Kilit ekranının koyuluğunu ayarlar.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            // Whether to keep the Mac awake while it is locked. Lay it out as a
-            // settings row: label on the leading edge, switch pinned trailing.
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Kilitliyken uykuyu engelle")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Kapatırsan Mac kilitliyken uykuya geçebilir.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                Toggle("", isOn: $store.preventSleepWhileLocked)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-            }
-
-            Divider()
-
-            // Intruder capture: toggle + (when on) a shortcut to the photos folder.
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("İzinsiz girişte fotoğraf çek")
-                            .font(.subheadline.weight(.semibold))
-                        Text("Kilidi açmaya çalışan kişinin ön kameradan fotoğrafını çeker.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer(minLength: 0)
-                    Toggle("", isOn: $store.captureIntruderPhoto)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-                if store.captureIntruderPhoto {
-                    Button("İzinsiz giriş fotoğraflarını aç", action: onOpenIntruderPhotos)
-                        .buttonStyle(.link)
-                        .font(.caption)
-                }
-            }
-            .onChange(of: store.captureIntruderPhoto) { _, newValue in
-                if newValue { onCaptureIntruderEnabled() }
-            }
-
-            Divider()
-
-            // Actions: round icon buttons side by side — lock (primary, filled)
-            // and quit (secondary, frosted).
-            HStack(spacing: 20) {
-                Button(action: onLockNow) {
-                    Image(systemName: "lock.fill")
-                }
-                .buttonStyle(CircleIconButtonStyle(prominent: true))
-                .help("Şimdi Kilitle")
-
-                Button(action: onQuit) {
-                    Image(systemName: "power")
-                }
-                .buttonStyle(CircleIconButtonStyle(prominent: false))
-                .help("Çıkış")
-            }
-            .frame(maxWidth: .infinity)
-
-            // How to unlock, for discoverability.
-            Text("Açmak için butona, Space veya Enter'a bas.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .padding(18)
-        .frame(width: 280)
-        // The panel window is borderless/clear, so the card draws its own frosted
-        // background + rounded corners (matches a native menu-bar dropdown).
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
-        )
-    }
-}
-
 // Borderless panels can't become key by default, which would leave the slider
 // and buttons unresponsive. Allow it (the panel is non-activating, so this does
 // not steal activation from the user's current app).
+//
+// The SwiftUI content grows and shrinks (custom-message field, return stepper,
+// image row), and the hosting view resizes the window to fit. Pin the top edge
+// so it always hangs from the menu bar instead of growing up into it.
 final class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { true }
+
+    var anchorTop: CGFloat?
+
+    override func setFrame(_ frameRect: NSRect, display flag: Bool) {
+        var rect = frameRect
+        if let top = anchorTop { rect.origin.y = top - rect.height }
+        super.setFrame(rect, display: flag)
+    }
 }
 
 @MainActor
@@ -172,14 +30,16 @@ final class MenuBarController {
     var onQuit: () -> Void = {}
 
     private let store: AppSettingsStore
+    private let updates: UpdateController
     private let statusItem: NSStatusItem
     private let preview: PreviewOverlayController
     private var panel: KeyablePanel?
     private var globalClickMonitor: Any?
     private var localKeyMonitor: Any?
 
-    init(store: AppSettingsStore) {
+    init(store: AppSettingsStore, updates: UpdateController) {
         self.store = store
+        self.updates = updates
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.preview = PreviewOverlayController(store: store)
         configureStatusButton()
@@ -245,6 +105,7 @@ final class MenuBarController {
 
         let root = SettingsView(
             store: store,
+            updates: updates,
             onLockNow: { [weak self] in self?.closePanel(); self?.onLockNow() },
             onQuit: { [weak self] in self?.closePanel(); self?.onQuit() },
             onSliderEditing: { [weak self] editing in
@@ -252,7 +113,13 @@ final class MenuBarController {
                 if editing { self?.preview.start() } else { self?.preview.stop() }
             },
             onCaptureIntruderEnabled: { [weak self] in self?.primeIntruderPermissions() },
-            onOpenIntruderPhotos: { IntruderCapture.openPhotosFolder() }
+            onOpenIntruderPhotos: { IntruderCapture.openPhotosFolder() },
+            onCheckForUpdates: { [weak self] in
+                self?.closePanel()
+                self?.updates.checkForUpdates()
+            },
+            onChooseImage: { [weak self] in self?.chooseFloatingImage() },
+            maxHeight: maxPanelHeight(for: buttonWindow.screen)
         )
         let hosting = FirstMouseHostingView(rootView: root)
         hosting.layoutSubtreeIfNeeded()
@@ -283,6 +150,7 @@ final class MenuBarController {
         var x = buttonScreen.minX
         x = min(x, visible.maxX - size.width - 8)
         x = max(x, visible.minX + 8)
+        panel.anchorTop = buttonScreen.minY
         panel.setFrameTopLeftPoint(NSPoint(x: x, y: buttonScreen.minY))
 
         panel.makeKeyAndOrderFront(nil)
@@ -292,6 +160,23 @@ final class MenuBarController {
         // Preview is NOT shown on open; it appears only while the slider is
         // dragged (see SettingsView onSliderEditing). closePanel() stops it as a
         // safety net if the panel closes mid-drag.
+    }
+
+    /// Room below the menu bar, minus a small margin.
+    private func maxPanelHeight(for screen: NSScreen?) -> CGFloat {
+        let visible = (screen ?? NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? .zero
+        return max(300, visible.height - 12)
+    }
+
+    /// The open panel can't sit above our popUpMenu-level panel, so close the
+    /// panel, run the picker, then reopen it to show the result.
+    private func chooseFloatingImage() {
+        closePanel()
+        if let name = FloatingImageStore.chooseAndImport() {
+            store.floatingImageName = name
+            store.floatingKind = .image
+        }
+        openPanel()
     }
 
     private func installDismissMonitors() {

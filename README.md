@@ -15,11 +15,16 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 🔒 **One-tap lock** — "Lock Now" from the menu, or the **⌃⌥⌘L** hotkey.
 - 👆 **Touch ID / password** to unlock (Unlock button, or Space / Enter).
 - 🌗 **Adjustable darkness** — from a light tint to fully opaque; live preview while dragging.
+- 💬 **Lock-screen status** — tell passers-by where you are ("In a meeting", "At lunch", "Back soon" or your own text) and, optionally, when you'll be back.
+- 📀 **Moving icon** — an emoji (any — searchable picker right in the menu) or your own image drifts across the lock screen like the old DVD screensaver.
+- 👀 **Live preview** — the menu shows a mini lock screen with your darkness, message, return time and icon as you change them.
+- ⏸️ **Pauses media** — music and videos pause the moment you lock, so nothing keeps playing at an empty desk (not auto-resumed). Want your music to keep going? Turn off "Pause music and video".
 - ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
 - 📸 **Intruder capture** *(opt-in)* — snaps a front-camera photo if someone keeps trying to get past the lock; saved to `~/Pictures/LeaveMyMacAlone/`, with a notification on unlock that opens the folder.
 - 🖥️ **Covers full-screen apps** — locking from inside a full-screen app (Slack, Safari, a video) pulls it out of full-screen so the lock actually covers the screen.
 - 🪶 **Lean permissions** — Accessibility for the lock (asked the first time you lock); Camera + Notifications only if you turn on intruder capture.
-- 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch.
+- 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch. Liquid Glass design on macOS 26+ (materials on 14–15).
+- 🔄 **Automatic updates** — new versions download in the background, are verified (EdDSA signature + Developer ID), and install with a quick relaunch — never while the Mac is locked. Can be turned off in the menu.
 - 🆘 **SSH kill switch** — recover remotely with `killall` if it ever hangs.
 - 🌍 Turkish + English UI (follows the system language).
 
@@ -38,8 +43,9 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Lock** | Menu > Lock Now · or **⌃⌥⌘L** |
 | **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
-| **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
-| **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
+| **Lock-screen message** | Menu > Message → preset or custom text · "Return time" switch, − / + to step it or click the time to type any duration ("50", "1:30") — counted from when you lock |
+| **Moving icon** | Menu > Moving icon → emoji, ⋯ to search all emoji, or 🖼 for your own image · Size: Small / Medium / Large |
+| **While locked** | Menu > switches: Pause music and video, Keep the Mac awake, Photograph intruders (with "Open photos") · Update automatically (with "Check now") |
 | **Quit** | Menu > Quit |
 
 ## 🆘 Recovery if it hangs (SSH kill switch)
@@ -76,7 +82,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (33 tests)
+swift build && swift test     # build + tests (68 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds
@@ -94,9 +100,13 @@ it automatically) and the Accessibility grant survives rebuilds.
 - It stops a prankster co-worker; it is not a military-grade lock.
 
 ## 🔐 Privacy
-No network access, no data collection. LocalAuthentication for Touch ID/password,
-IOKit to keep awake, a CoreGraphics event tap to block input. Intruder photos (opt-in)
-are saved only to `~/Pictures/LeaveMyMacAlone/` on your Mac — never uploaded. All local.
+No data collection. The only network request is the update check: a daily
+download of the public `appcast.xml` from this repo's GitHub releases (and the
+new version, when there is one) — nothing about you or your Mac is sent. Turn
+off "Update automatically" in the menu and the app makes no requests unless you
+press "Check now". LocalAuthentication for Touch ID/password, IOKit to keep awake,
+a CoreGraphics event tap to block input, [Sparkle](https://sparkle-project.org) for
+updates. Intruder photos (opt-in) are saved only to `~/Pictures/LeaveMyMacAlone/` on your Mac — never uploaded. All local.
 
 ## 📄 License
 [MIT](LICENSE) © 2026 Alperen Kişi

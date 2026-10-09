@@ -14,6 +14,7 @@ final class AppController {
     private let intruder = IntruderCapture(photographer: AVFoundationPhotographer())
 
     private var menuBar: MenuBarController?
+    private var updates: UpdateController?
     private var hotKey: GlobalHotKey?
 
     // Auth lifecycle guards. `authEpoch` is bumped whenever an authentication
@@ -45,7 +46,12 @@ final class AppController {
     func start() {
         NSApp.setActivationPolicy(.accessory)
 
-        let menu = MenuBarController(store: store)
+        let updates = UpdateController(isLocked: { [weak self] in
+            self?.machine.state != .unlocked
+        })
+        self.updates = updates
+
+        let menu = MenuBarController(store: store, updates: updates)
         menu.onLockNow = { [weak self] in
             guard let self else { return }
             Task { @MainActor in self.lock() }
@@ -117,6 +123,12 @@ final class AppController {
         // so the lock lands on a Desktop Space the shield covers. No-op otherwise.
         FullScreenExiter.exitFrontmostFullScreen()
         intruder.beginSession(enabled: store.captureIntruderPhoto)
+        // Stop audio/video so nothing keeps playing (or leaking sound) at an
+        // unattended desk — unless the owner chose to keep their music going.
+        // Not resumed on unlock: the owner decides that.
+        if !store.keepMediaPlaying {
+            MediaPauser.pauseNowPlaying()
+        }
         // Keep the Mac awake while locked only if the user wants it (default on);
         // sleepGuard.end() on teardown is a no-op if we never began.
         if store.preventSleepWhileLocked {
@@ -126,7 +138,9 @@ final class AppController {
         // anywhere else on the shield → flash "still locked" while locked, or
         // re-present a buried auth sheet while authenticating (tap-independent
         // recovery, so a covering window can never strand the user).
-        shield.show(opacity: store.overlayOpacity, onInteract: { [weak self] in
+        shield.show(opacity: store.overlayOpacity, away: store.awayStatus(),
+                   floating: store.floatingIcon(),
+                   floatingSize: store.floatingSize, onInteract: { [weak self] in
             guard let self else { return }
             Task { @MainActor in self.handleBackgroundClick() }
         }, onUnlock: { [weak self] in
@@ -249,6 +263,7 @@ final class AppController {
             sleepGuard.end()
             intruder.postUnlockNotification()
             intruder.endSession()
+            installHeldUpdateSoon()
         } else if inputBlocker.endAuthMode() {
             _ = machine.authFailed()          // re-armed; stay locked
             shield.raiseToFullShield()        // back to full cover (no auth dialog)
@@ -287,6 +302,19 @@ final class AppController {
         shield.hide()
         sleepGuard.end()
         showTapFailureAlert()
+        installHeldUpdateSoon()
+    }
+
+    /// An update that became ready while locked was held back (installing
+    /// relaunches the app). Install it now that the lock is gone — after a short
+    /// pause so the unlock animation finishes, and only if still unlocked (a
+    /// re-lock keeps it held for the next release).
+    private func installHeldUpdateSoon() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            guard self.machine.state == .unlocked else { return }
+            self.updates?.lockDidRelease()
+        }
     }
 
     private func startWatchdog(epoch: Int) {

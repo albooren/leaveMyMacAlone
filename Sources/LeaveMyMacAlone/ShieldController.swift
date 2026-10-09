@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import LeaveMyMacAloneCore
 
 // Borderless windows return false from canBecomeKey by default, which drops
 // keyboard input. Override so the shield can become key.
@@ -39,6 +40,11 @@ final class OverlayModel: ObservableObject {
     // Incremented to make the lock badge shake + grow ("still locked" feedback)
     // when the user clicks anywhere other than the unlock button.
     @Published var shakeToken: Int
+    // Owner-set status for passers-by ("Toplantıdayım · Dönüş: 14:30"); nil = none.
+    @Published var away: AwayStatus?
+    // Icon drifting DVD-style across the shield; nil = none.
+    @Published var floating: FloatingIcon?
+    @Published var floatingSize: FloatingIconSize = .medium
 
     init(opacity: Double) {
         self.opacity = opacity
@@ -64,11 +70,63 @@ private struct GlassButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .padding(.horizontal, 22)
             .padding(.vertical, 12)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(0.30), lineWidth: 1))
+            .glassSurface(Capsule(), interactive: true)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+// The owner's status line(s) under "Kilitli": a headline and/or a return time.
+private struct AwayStatusView: View {
+    let status: AwayStatus
+
+    var body: some View {
+        VStack(spacing: 4) {
+            if let headline = status.headline {
+                headlineText(headline)
+                    .font(.title2.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 520)
+            }
+            if let returnTime = status.returnTime {
+                Text("Dönüş: \(Text(returnTime, style: .time))")
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.85))
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func headlineText(_ headline: AwayStatus.Headline) -> Text {
+        switch headline {
+        case .custom(let text): return Text(verbatim: text)
+        case .preset(let preset): return Text(preset.lockScreenTitle)
+        }
+    }
+}
+
+extension AwayPreset {
+    /// Full sentence shown on the lock screen.
+    var lockScreenTitle: LocalizedStringKey {
+        switch self {
+        case .none: return "Mesaj yok"
+        case .meeting: return "Toplantıdayım"
+        case .lunch: return "Öğle arasındayım"
+        case .backSoon: return "Hemen dönerim"
+        case .custom: return "Özel mesaj"
+        }
+    }
+
+    /// Short label for the menu's chips.
+    var chipTitle: LocalizedStringKey {
+        switch self {
+        case .none: return "Yok"
+        case .meeting: return "Toplantıdayım"
+        case .lunch: return "Öğle arası"
+        case .backSoon: return "Hemen dönerim"
+        case .custom: return "Özel mesaj"
+        }
     }
 }
 
@@ -83,6 +141,11 @@ struct OverlayView: View {
             Color.black
                 .opacity(model.revealed ? model.opacity : 0)
                 .ignoresSafeArea()
+
+            if let icon = model.floating, model.revealed, !model.unlocking {
+                BouncingIconView(icon: icon, size: model.floatingSize.lockScreenPoints, speed: 130)
+                    .transition(.opacity)
+            }
 
             VStack(spacing: 14) {
                 Image(systemName: model.unlocking ? "lock.open.fill" : "lock.fill")
@@ -109,6 +172,10 @@ struct OverlayView: View {
 
                 Text(statusText)
                     .font(.title3.weight(.medium))
+
+                if let away = model.away, !model.unlocking {
+                    AwayStatusView(status: away)
+                }
 
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     Text(context.date, style: .time)
@@ -189,6 +256,9 @@ final class ShieldController {
     }
 
     func show(opacity: Double,
+              away: AwayStatus?,
+              floating: FloatingIcon?,
+              floatingSize: FloatingIconSize,
               onInteract: @escaping () -> Void,
               onUnlock: @escaping () -> Void) {
         // Abort any in-flight exit animation from a previous cycle.
@@ -200,6 +270,9 @@ final class ShieldController {
         currentLevel = Int(CGShieldingWindowLevel())
         // Reset to the pre-entrance state; the entrance is sprung in below.
         model.opacity = opacity
+        model.away = away
+        model.floating = floating
+        model.floatingSize = floatingSize
         model.unlocking = false
         model.revealed = false
         isShown = true

@@ -26,6 +26,11 @@ cp "${BIN}" "${APP}/Contents/MacOS/${APP_NAME}"
 chmod +x "${APP}/Contents/MacOS/${APP_NAME}"
 cp "${ROOT}/Resources/Info.plist" "${APP}/Contents/Info.plist"
 
+# Sparkle (auto-update). ditto keeps the framework's Versions/ symlinks intact;
+# the executable finds it via the @executable_path/../Frameworks rpath.
+mkdir -p "${APP}/Contents/Frameworks"
+ditto "${BIN_DIR}/Sparkle.framework" "${APP}/Contents/Frameworks/Sparkle.framework"
+
 # App icon.
 cp "${ROOT}/Resources/AppIcon.icns" "${APP}/Contents/Resources/AppIcon.icns"
 
@@ -65,16 +70,41 @@ if [[ -z "${SIGN_IDENTITY}" ]]; then
 fi
 echo "Signing with identity: ${SIGN_IDENTITY} ($([[ "${SIGN_IDENTITY}" == "-" ]] && echo 'ad-hoc — TCC resets each build' || echo 'stable — TCC persists'))"
 
-codesign --force --deep \
-    --sign "${SIGN_IDENTITY}" \
-    --entitlements "${ROOT}/Resources/${APP_NAME}.entitlements" \
-    --options runtime \
+# Sign inside-out (NOT --deep: it would strip the entitlements Sparkle's helpers
+# ship with). Nested Sparkle code first, then the app itself. SIGN_TIMESTAMP=1
+# (set by release.sh) adds the secure timestamp notarization requires.
+if [[ "${SIGN_TIMESTAMP:-0}" == "1" ]]; then TIMESTAMP="--timestamp"; else TIMESTAMP="--timestamp=none"; fi
+sign() { codesign --force --options runtime ${TIMESTAMP} --sign "${SIGN_IDENTITY}" "$@"; }
+
+SPARKLE="${APP}/Contents/Frameworks/Sparkle.framework"
+sign "${SPARKLE}/Versions/B/XPCServices/Installer.xpc"
+sign --preserve-metadata=entitlements "${SPARKLE}/Versions/B/XPCServices/Downloader.xpc"
+sign "${SPARKLE}/Versions/B/Autoupdate"
+sign "${SPARKLE}/Versions/B/Updater.app"
+sign "${SPARKLE}"
+
+# Library validation only lets the app load Sparkle.framework when both carry
+# the same Team ID. A Developer ID build has one; the self-signed dev cert (and
+# ad-hoc) has none, so dyld would refuse Sparkle and the app dies at launch.
+# Dev builds therefore get disable-library-validation; release builds never do.
+# RELEASE_BUILD=1 (set by release.sh) forbids it outright, whatever form the
+# signing identity is given in (name, short name or SHA-1 hash).
+ENTITLEMENTS="${ROOT}/Resources/${APP_NAME}.entitlements"
+if [[ "${RELEASE_BUILD:-0}" != "1" && "${SIGN_IDENTITY}" != "Developer ID Application:"* ]]; then
+    DEV_ENTITLEMENTS="$(mktemp -d)/dev.entitlements"
+    cp "${ENTITLEMENTS}" "${DEV_ENTITLEMENTS}"
+    /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "${DEV_ENTITLEMENTS}"
+    ENTITLEMENTS="${DEV_ENTITLEMENTS}"
+    echo "Dev signing: library validation disabled (not used for Developer ID builds)"
+fi
+
+sign --entitlements "${ENTITLEMENTS}" \
     --identifier "${BUNDLE_ID}" \
     "${APP}"
 
 # 5) Verify signature and show the cdhash (changes every rebuild; with a stable
 # identity the TCC Designated Requirement still matches, so grants persist).
-codesign --verify --strict --verbose=2 "${APP}"
+codesign --verify --deep --strict --verbose=2 "${APP}"
 codesign -dvvv "${APP}" 2>&1 | grep -i 'CDHash='
 
 echo "Built: ${APP}"
