@@ -42,6 +42,8 @@ final class OverlayModel: ObservableObject {
     @Published var shakeToken: Int
     // Owner-set status for passers-by ("Toplantıdayım · Dönüş: 14:30"); nil = none.
     @Published var away: AwayStatus?
+    // Icon drifting DVD-style across the shield; nil = none.
+    @Published var floating: FloatingIcon?
 
     init(opacity: Double) {
         self.opacity = opacity
@@ -99,20 +101,31 @@ private struct AwayStatusView: View {
     private func headlineText(_ headline: AwayStatus.Headline) -> Text {
         switch headline {
         case .custom(let text): return Text(verbatim: text)
-        case .preset(let preset): return Text(preset.title)
+        case .preset(let preset): return Text(preset.lockScreenTitle)
         }
     }
 }
 
 extension AwayPreset {
-    /// Localized label, shared by the lock screen and the menu picker.
-    var title: LocalizedStringKey {
+    /// Full sentence shown on the lock screen.
+    var lockScreenTitle: LocalizedStringKey {
         switch self {
         case .none: return "Mesaj yok"
         case .meeting: return "Toplantıdayım"
         case .lunch: return "Öğle arasındayım"
         case .backSoon: return "Hemen dönerim"
-        case .custom: return "Özel mesaj…"
+        case .custom: return "Özel mesaj"
+        }
+    }
+
+    /// Short label for the menu's chips.
+    var chipTitle: LocalizedStringKey {
+        switch self {
+        case .none: return "Yok"
+        case .meeting: return "Toplantıdayım"
+        case .lunch: return "Öğle arası"
+        case .backSoon: return "Hemen dönerim"
+        case .custom: return "Özel mesaj"
         }
     }
 }
@@ -128,6 +141,11 @@ struct OverlayView: View {
             Color.black
                 .opacity(model.revealed ? model.opacity : 0)
                 .ignoresSafeArea()
+
+            if let icon = model.floating, model.revealed, !model.unlocking {
+                BouncingIconView(icon: icon, size: 96, speed: 130)
+                    .transition(.opacity)
+            }
 
             VStack(spacing: 14) {
                 Image(systemName: model.unlocking ? "lock.open.fill" : "lock.fill")
@@ -239,6 +257,7 @@ final class ShieldController {
 
     func show(opacity: Double,
               away: AwayStatus?,
+              floating: FloatingIcon?,
               onInteract: @escaping () -> Void,
               onUnlock: @escaping () -> Void) {
         // Abort any in-flight exit animation from a previous cycle.
@@ -251,6 +270,7 @@ final class ShieldController {
         // Reset to the pre-entrance state; the entrance is sprung in below.
         model.opacity = opacity
         model.away = away
+        model.floating = floating
         model.unlocking = false
         model.revealed = false
         isShown = true

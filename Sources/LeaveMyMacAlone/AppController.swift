@@ -137,7 +137,8 @@ final class AppController {
         // anywhere else on the shield → flash "still locked" while locked, or
         // re-present a buried auth sheet while authenticating (tap-independent
         // recovery, so a covering window can never strand the user).
-        shield.show(opacity: store.overlayOpacity, away: store.awayStatus(), onInteract: { [weak self] in
+        shield.show(opacity: store.overlayOpacity, away: store.awayStatus(),
+                   floating: store.floatingIcon(), onInteract: { [weak self] in
             guard let self else { return }
             Task { @MainActor in self.handleBackgroundClick() }
         }, onUnlock: { [weak self] in

@@ -1,0 +1,73 @@
+import XCTest
+@testable import LeaveMyMacAloneCore
+
+final class BounceMathTests: XCTestCase {
+    func testStartsAtPhase() {
+        XCTAssertEqual(BounceMath.position(elapsed: 0, speed: 100, travel: 300, phase: 50), 50, accuracy: 0.001)
+    }
+
+    func testMovesForwardUntilTheEdge() {
+        XCTAssertEqual(BounceMath.position(elapsed: 2, speed: 100, travel: 300, phase: 0), 200, accuracy: 0.001)
+        XCTAssertEqual(BounceMath.position(elapsed: 3, speed: 100, travel: 300, phase: 0), 300, accuracy: 0.001)
+    }
+
+    func testReflectsOffTheFarEdge() {
+        XCTAssertEqual(BounceMath.position(elapsed: 4, speed: 100, travel: 300, phase: 0), 200, accuracy: 0.001)
+    }
+
+    func testReflectsOffTheNearEdgeAndRepeats() {
+        XCTAssertEqual(BounceMath.position(elapsed: 6, speed: 100, travel: 300, phase: 0), 0, accuracy: 0.001)
+        XCTAssertEqual(BounceMath.position(elapsed: 7, speed: 100, travel: 300, phase: 0), 100, accuracy: 0.001)
+    }
+
+    func testStaysInsideTravelForLongRuns() {
+        for second in stride(from: 0.0, through: 36_000, by: 137.3) {
+            let p = BounceMath.position(elapsed: second, speed: 173, travel: 1180, phase: 411)
+            XCTAssertTrue((0...1180).contains(p), "\(p) at \(second)s")
+        }
+    }
+
+    func testZeroTravelPinsToZero() {
+        XCTAssertEqual(BounceMath.position(elapsed: 5, speed: 100, travel: 0, phase: 0), 0)
+    }
+}
+
+final class ReturnTimeStepsTests: XCTestCase {
+    func testStepsUpAndDown() {
+        XCTAssertEqual(ReturnTimeSteps.next(after: 30), 45)
+        XCTAssertEqual(ReturnTimeSteps.previous(before: 30), 15)
+        XCTAssertEqual(ReturnTimeSteps.next(after: 60), 90)
+    }
+
+    func testClampsAtTheEnds() {
+        XCTAssertEqual(ReturnTimeSteps.previous(before: 15), 15)
+        XCTAssertEqual(ReturnTimeSteps.next(after: 240), 240)
+    }
+
+    func testOffGridValueSnapsToNeighbour() {
+        XCTAssertEqual(ReturnTimeSteps.next(after: 50), 60)
+        XCTAssertEqual(ReturnTimeSteps.previous(before: 50), 45)
+    }
+
+    func testSplitsIntoHoursAndMinutes() {
+        XCTAssertTrue(ReturnTimeSteps.split(90) == (1, 30))
+        XCTAssertTrue(ReturnTimeSteps.split(45) == (0, 45))
+        XCTAssertTrue(ReturnTimeSteps.split(120) == (2, 0))
+    }
+}
+
+final class EmojiInputTests: XCTestCase {
+    func testPicksTheFirstEmoji() {
+        XCTAssertEqual(EmojiInput.firstEmoji(in: "ab🐶c🐱"), "🐶")
+    }
+
+    func testKeepsMultiScalarEmojiWhole() {
+        XCTAssertEqual(EmojiInput.firstEmoji(in: "👩🏽‍💻"), "👩🏽‍💻")
+        XCTAssertEqual(EmojiInput.firstEmoji(in: "🇹🇷"), "🇹🇷")
+    }
+
+    func testIgnoresPlainTextAndDigits() {
+        XCTAssertNil(EmojiInput.firstEmoji(in: "hello 123 #"))
+        XCTAssertNil(EmojiInput.firstEmoji(in: ""))
+    }
+}

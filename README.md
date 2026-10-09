@@ -16,6 +16,8 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 - 👆 **Touch ID / password** to unlock (Unlock button, or Space / Enter).
 - 🌗 **Adjustable darkness** — from a light tint to fully opaque; live preview while dragging.
 - 💬 **Lock-screen status** — tell passers-by where you are ("In a meeting", "At lunch", "Back soon" or your own text) and, optionally, when you'll be back.
+- 📀 **Moving icon** — an emoji (any, via the system picker) or your own image drifts across the lock screen like the old DVD screensaver.
+- 👀 **Live preview** — the menu shows a mini lock screen with your wallpaper, darkness, message and icon as you change them.
 - ⏸️ **Pauses media** — music and videos pause the moment you lock, so nothing keeps playing at an empty desk (on by default; not auto-resumed).
 - ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
 - 📸 **Intruder capture** *(opt-in)* — snaps a front-camera photo if someone keeps trying to get past the lock; saved to `~/Pictures/LeaveMyMacAlone/`, with a notification on unlock that opens the folder.
@@ -41,8 +43,9 @@ background (downloads, renders, builds…) keeps going uninterrupted.
 | **Lock** | Menu > Lock Now · or **⌃⌥⌘L** |
 | **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
 | **Darkness** | Menu > slider (set it while unlocked; persists) |
-| **Lock-screen message** | Menu > "Lock screen message" → preset or custom text · optional "Back" time (counted from when you lock) |
-| **Pause media** | Menu > "Pause media when locking" toggle (on by default) |
+| **Lock-screen message** | Menu > Message → preset or custom text · "Return time" switch, − / + to set it (counted from when you lock) |
+| **Moving icon** | Menu > Moving icon → emoji, ⋯ for any emoji, or 🖼 for your own image |
+| **Quick toggles** | Menu > tiles: Media (pause on lock), Stay awake, Intruder photo, Updates · right-click Intruder for the photos folder, Updates to check now |
 | **Stay awake while locked** | Menu > "Prevent sleep while locked" toggle |
 | **Intruder photo** | Menu > "Capture intruder photo" toggle (opt-in) |
 | **Updates** | Menu > "Update automatically" toggle (on by default) · "Check now" |
@@ -82,7 +85,7 @@ When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the 
 
 ## 🛠️ Development
 ```bash
-swift build && swift test     # build + tests (45 tests)
+swift build && swift test     # build + tests (58 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
 ```
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds
