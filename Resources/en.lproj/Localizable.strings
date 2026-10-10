@@ -9,6 +9,7 @@
 "Şimdi Kilitle" = "Lock Now";
 "Çıkış" = "Quit";
 "Açmak için butona, Space veya Enter'a bas." = "Press the button, Space, or Enter to unlock.";
+"Mac'in kilidini açmak için kimliğini doğrula" = "Verify your identity to unlock your Mac.";
 "Kilitli" = "Locked";
 "Açılıyor…" = "Unlocking…";
 "Kilidi Aç" = "Unlock";

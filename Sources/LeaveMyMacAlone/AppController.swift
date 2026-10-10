@@ -247,7 +247,8 @@ final class AppController {
         startWatchdog(epoch: epoch)
         authTask = Task { @MainActor in
             let ok = await authenticator.authenticate(
-                reason: "Mac'in kilidini açmak için kimliğini doğrula")
+                reason: NSLocalizedString("Mac'in kilidini açmak için kimliğini doğrula",
+                                          comment: "Touch ID / password prompt reason"))
             guard epoch == self.authEpoch else { return } // superseded → ignore
             self.finishAuth(success: ok)
         }
