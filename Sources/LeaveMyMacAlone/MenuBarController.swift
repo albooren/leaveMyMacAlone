@@ -88,9 +88,7 @@ final class MenuBarController {
 
     private func configureStatusButton() {
         guard let button = statusItem.button else { return }
-        button.image = NSImage(systemSymbolName: "lock.shield",
-                               accessibilityDescription: "LeaveMyMacAlone")
-        button.image?.isTemplate = true
+        button.image = StatusBarIcon.make()
         button.target = self
         button.action = #selector(togglePanel(_:))
     }
