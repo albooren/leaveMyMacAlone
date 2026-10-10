@@ -74,7 +74,7 @@ final class MenuBarController {
         alert.messageText = NSLocalizedString("Kamera izni gerekli",
                                               comment: "Camera denied title")
         alert.informativeText = NSLocalizedString(
-            "İzinsiz giriş fotoğrafı çekebilmek için Kamera izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Kamera bölümünde LeaveMyMacAlone uygulamasına izin ver.",
+            "İzinsiz giriş fotoğrafı çekebilmek için Kamera izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Kamera bölümünde Leave My Mac Alone uygulamasına izin ver.",
             comment: "Camera denied body")
         alert.addButton(withTitle: NSLocalizedString("Kamera Ayarlarını Aç",
                                                      comment: "Open camera settings button"))

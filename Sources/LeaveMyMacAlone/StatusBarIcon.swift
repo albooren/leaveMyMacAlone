@@ -18,7 +18,7 @@ enum StatusBarIcon {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "LeaveMyMacAlone"
+        image.accessibilityDescription = "Leave My Mac Alone"
         return image
     }
 

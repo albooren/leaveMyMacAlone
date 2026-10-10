@@ -36,7 +36,8 @@ cp "${ROOT}/Resources/AppIcon.icns" "${APP}/Contents/Resources/AppIcon.icns"
 
 # Localizations: copy every .lproj (e.g. en.lproj) into the bundle so the .app's
 # main bundle resolves them. The Turkish development-language strings are the
-# keys, so Turkish needs no .lproj.
+# keys, so Turkish needs no Localizable.strings (tr.lproj only carries
+# InfoPlist.strings, the localized display name).
 for lproj in "${ROOT}/Resources"/*.lproj; do
     [ -d "${lproj}" ] && cp -R "${lproj}" "${APP}/Contents/Resources/"
 done

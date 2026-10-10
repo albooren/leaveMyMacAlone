@@ -454,7 +454,7 @@ final class AppController {
             localizedName)
         alert.informativeText = String(
             format: NSLocalizedString(
-                "LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır.",
+                "Leave My Mac Alone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede Leave My Mac Alone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır.",
                 comment: "Permission step body"),
             localizedName)
         alert.addButton(withTitle: String(
@@ -485,7 +485,7 @@ final class AppController {
             format: NSLocalizedString("%@ izni doğrulanamadı", comment: "Permission timeout title"),
             localizedName)
         alert.informativeText = NSLocalizedString(
-            "İzni verdiysen LeaveMyMacAlone'u kapatıp yeniden açmayı dene, sonra menüden kilitle.",
+            "İzni verdiysen Leave My Mac Alone'u kapatıp yeniden açmayı dene, sonra menüden kilitle.",
             comment: "Permission timeout body")
         alert.addButton(withTitle: NSLocalizedString("Tamam", comment: "OK button"))
         NSApp.activate()
@@ -496,7 +496,7 @@ final class AppController {
         let alert = NSAlert()
         alert.messageText = NSLocalizedString("Giriş engelleme kurulamadı", comment: "Tap failure title")
         alert.informativeText = NSLocalizedString(
-            "Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik > Erişilebilirlik bölümünden LeaveMyMacAlone'a izin verildiğinden emin ol, sonra tekrar kilitle.",
+            "Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik > Erişilebilirlik bölümünden Leave My Mac Alone'a izin verildiğinden emin ol, sonra tekrar kilitle.",
             comment: "Tap failure body")
         alert.addButton(withTitle: NSLocalizedString("Tamam", comment: "OK button"))
         NSApp.activate()

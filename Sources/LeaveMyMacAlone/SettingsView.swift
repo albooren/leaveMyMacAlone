@@ -236,7 +236,7 @@ private struct QuitButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(PressableStyle())
-        .help("LeaveMyMacAlone'dan çık")
+        .help("Leave My Mac Alone'dan çık")
         .accessibilityLabel("Çık")
     }
 }
