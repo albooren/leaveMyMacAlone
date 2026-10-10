@@ -1,10 +1,18 @@
-# 🛡️ Leave My Mac Alone
+<p align="center">
+  <img src="docs/media/icon.png" width="128" height="128" alt="Leave My Mac Alone app icon">
+</p>
 
-> Keep your Mac working while you step away — but stop anyone from touching the keyboard or mouse.
+<h1 align="center">Leave My Mac Alone</h1>
 
-![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-black?logo=apple)
-![License](https://img.shields.io/badge/license-MIT-blue)
-[![Latest release](https://img.shields.io/github/v/release/albooren/leaveMyMacAlone?label=download&color=success)](https://github.com/albooren/leaveMyMacAlone/releases/latest)
+<p align="center">
+  Keep your Mac working while you step away — but stop anyone from touching the keyboard or mouse.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-macOS%2014%2B-black?logo=apple" alt="Platform: macOS 14+">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT">
+  <a href="https://github.com/albooren/leaveMyMacAlone/releases/latest"><img src="https://img.shields.io/github/v/release/albooren/leaveMyMacAlone?label=download&color=success" alt="Latest release"></a>
+</p>
 
 ![Lock your Mac while an export keeps running, then unlock it with Touch ID](docs/media/demo.gif)
 
