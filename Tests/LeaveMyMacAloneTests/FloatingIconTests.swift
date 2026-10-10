@@ -32,6 +32,34 @@ final class BounceMathTests: XCTestCase {
     }
 }
 
+final class IconFitTests: XCTestCase {
+    /// A wide image (the 313×138 DVD logo) fills the box's width, not its height,
+    /// so it must bounce off the screen's top and bottom with its own height.
+    func testWideImageFitsToTheBoxWidth() {
+        let fit = IconFit.size(width: 313, height: 138, box: 144)
+        XCTAssertEqual(fit.width, 144, accuracy: 0.001)
+        XCTAssertEqual(fit.height, 144 * 138 / 313, accuracy: 0.001)
+    }
+
+    func testTallImageFitsToTheBoxHeight() {
+        let fit = IconFit.size(width: 100, height: 400, box: 200)
+        XCTAssertEqual(fit.width, 50, accuracy: 0.001)
+        XCTAssertEqual(fit.height, 200, accuracy: 0.001)
+    }
+
+    func testSquareImageFillsTheBox() {
+        let fit = IconFit.size(width: 64, height: 64, box: 104)
+        XCTAssertEqual(fit.width, 104, accuracy: 0.001)
+        XCTAssertEqual(fit.height, 104, accuracy: 0.001)
+    }
+
+    func testDegenerateImageCollapsesToZero() {
+        let fit = IconFit.size(width: 0, height: 50, box: 144)
+        XCTAssertEqual(fit.width, 0)
+        XCTAssertEqual(fit.height, 0)
+    }
+}
+
 final class ReturnTimeStepsTests: XCTestCase {
     func testStepsUpAndDown() {
         XCTAssertEqual(ReturnTimeSteps.next(after: 30), 45)
