@@ -1,0 +1,3 @@
+/* Name shown in Finder, the Dock, System Settings and permission prompts. */
+"CFBundleDisplayName" = "Leave My Mac Alone";
+"CFBundleName" = "Leave My Mac Alone";

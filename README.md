@@ -66,7 +66,7 @@ The built-in lock is great for security, but it's not made for "I'm away, but my
 1. **[Download `LeaveMyMacAlone.dmg`](https://github.com/albooren/leaveMyMacAlone/releases/latest)**, open it and drag the app into **Applications**.
 2. Open the app. A small **shield icon** appears at the top right of your screen, in the menu bar. (There's no window and no Dock icon — that's normal.)
 3. Click the shield → **Lock Now**. The first time, your Mac asks for **Accessibility** permission:
-   click **Open Accessibility Settings**, turn on **LeaveMyMacAlone**, and it locks right away.
+   click **Open Accessibility Settings**, turn on **Leave My Mac Alone**, and it locks right away.
 
 > **Why Accessibility?** It's the macOS permission that lets an app block the keyboard and mouse.
 > The app uses it only for that — it doesn't read what you type and sends nothing anywhere.

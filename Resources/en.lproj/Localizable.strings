@@ -19,18 +19,18 @@
 
 /* --- Permission onboarding & alerts (AppKit) --- */
 "Kamera izni gerekli" = "Camera permission required";
-"İzinsiz giriş fotoğrafı çekebilmek için Kamera izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Kamera bölümünde LeaveMyMacAlone uygulamasına izin ver." = "Capturing intruder photos needs Camera access. In System Settings > Privacy & Security > Camera, allow LeaveMyMacAlone.";
+"İzinsiz giriş fotoğrafı çekebilmek için Kamera izni gerekiyor. Sistem Ayarları > Gizlilik ve Güvenlik > Kamera bölümünde Leave My Mac Alone uygulamasına izin ver." = "Capturing intruder photos needs Camera access. In System Settings > Privacy & Security > Camera, allow Leave My Mac Alone.";
 "Kamera Ayarlarını Aç" = "Open Camera Settings";
 "Erişilebilirlik" = "Accessibility";
 "%@ izni gerekli" = "%@ permission required";
-"LeaveMyMacAlone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede LeaveMyMacAlone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır." = "LeaveMyMacAlone needs the %@ permission to block input. Click the button below, find LeaveMyMacAlone in the list, and turn its switch on. It completes automatically once granted.";
+"Leave My Mac Alone girişi engelleyebilmek için %@ iznine ihtiyaç duyar. Aşağıdaki düğmeye bas, açılan listede Leave My Mac Alone'u bul ve anahtarını aç. İzni verince otomatik tamamlanır." = "Leave My Mac Alone needs the %@ permission to block input. Click the button below, find Leave My Mac Alone in the list, and turn its switch on. It completes automatically once granted.";
 "%@ Ayarlarını Aç" = "Open %@ Settings";
 "İptal" = "Cancel";
 "Tamam" = "OK";
 "%@ izni doğrulanamadı" = "Couldn’t verify the %@ permission";
-"İzni verdiysen LeaveMyMacAlone'u kapatıp yeniden açmayı dene, sonra menüden kilitle." = "If you granted it, quit and reopen LeaveMyMacAlone, then lock from the menu.";
+"İzni verdiysen Leave My Mac Alone'u kapatıp yeniden açmayı dene, sonra menüden kilitle." = "If you granted it, quit and reopen Leave My Mac Alone, then lock from the menu.";
 "Giriş engelleme kurulamadı" = "Couldn’t enable input blocking";
-"Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik > Erişilebilirlik bölümünden LeaveMyMacAlone'a izin verildiğinden emin ol, sonra tekrar kilitle." = "Input blocking couldn’t be enabled, so the lock was removed. In System Settings > Privacy & Security > Accessibility, make sure LeaveMyMacAlone is allowed, then lock again.";
+"Giriş engelleme etkinleştirilemedi, bu yüzden kilit kaldırıldı. Sistem Ayarları > Gizlilik ve Güvenlik > Erişilebilirlik bölümünden Leave My Mac Alone'a izin verildiğinden emin ol, sonra tekrar kilitle." = "Input blocking couldn’t be enabled, so the lock was removed. In System Settings > Privacy & Security > Accessibility, make sure Leave My Mac Alone is allowed, then lock again.";
 "İzinsiz giriş tespit edildi" = "Intruder detected";
 "%d izinsiz giriş fotoğrafı çekildi." = "%d intruder photo(s) captured.";
 "Şimdi kontrol et" = "Check now";
@@ -89,4 +89,4 @@
 "İndirmeler kilitliyken sürer" = "Downloads keep running while locked";
 "Otomatik güncelle" = "Update automatically";
 "Yalnızca bu Mac'te saklanır" = "Kept on this Mac only";
-"LeaveMyMacAlone'dan çık" = "Quit LeaveMyMacAlone";
+"Leave My Mac Alone'dan çık" = "Quit Leave My Mac Alone";

@@ -12,7 +12,7 @@ final class StatusBarIconTests: XCTestCase {
     }
 
     func testIconHasAnAccessibilityDescription() {
-        XCTAssertEqual(StatusBarIcon.make().accessibilityDescription, "LeaveMyMacAlone")
+        XCTAssertEqual(StatusBarIcon.make().accessibilityDescription, "Leave My Mac Alone")
     }
 
     /// The shield body is solid, the keyhole is cut out, and the shackle's

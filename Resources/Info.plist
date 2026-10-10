@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>tr</string>
 	<key>CFBundleDisplayName</key>
-	<string>Leave My Mac Alone</string>
+	<string>LeaveMyMacAlone</string>
 	<key>CFBundleExecutable</key>
 	<string>LeaveMyMacAlone</string>
 	<key>CFBundleIconFile</key>
@@ -18,15 +18,17 @@
 		<string>en</string>
 	</array>
 	<key>CFBundleName</key>
-	<string>LeaveMyMacAlone</string>
+	<string>Leave My Mac Alone</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.3.0</string>
+	<string>1.3.1</string>
 	<key>CFBundleVersion</key>
-	<string>4</string>
+	<string>5</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
+	<key>LSHasLocalizedDisplayName</key>
+	<true/>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
