@@ -1,9 +1,18 @@
-Leave My Mac Alone v1.3.2 — the unlock prompt now speaks your language.
+Leave My Mac Alone v1.3.2 — automatic updates, a lock screen that tells people where you are, a redesigned menu, and a new look.
 
-> **Updating from v1.2.0 or later:** nothing to do — the app updates itself (or use "Check now" in the menu).
+> **Updating from v1.1.0:** install this version once by hand (download below). From here on, the app keeps itself up to date.
+> **Already on v1.2.0 or later:** nothing to do — the app updates itself (or use "Check now" in the menu).
 
-## What's new since v1.3.1
-- 🌍 **Unlock prompt in English** — the Touch ID / password prompt said "Mac'in kilidini açmak için kimliğini doğrula" even on English systems. It now reads "Verify your identity to unlock your Mac." (Turkish systems are unchanged.)
+## What's new since v1.1.0
+- 🔄 **Automatic updates** — new versions download in the background, are verified (EdDSA signature + Developer ID), and install with a quick relaunch. Never while the Mac is locked: an update that arrives while you're away waits until you unlock. Can be turned off in the menu; "Check now" is right next to it.
+- 💬 **Lock-screen message** — tell passers-by where you are: "In a meeting", "At lunch", "Back soon", or your own text — plus an optional return time ("Back at 14:30"). Step it with − / +, or click the time and type any duration ("50", "1:30").
+- 📀 **Moving icon** — pick an emoji (search the full set right in the menu) or your own image, and it drifts across the lock screen like the old DVD screensaver. Small / Medium / Large.
+- ⏸️ **Pauses music and video** — whatever is playing pauses the moment you lock, so nothing keeps playing at an empty desk. Want it to keep going? Turn the switch off.
+- 👀 **Redesigned menu with a live preview** — a mini lock screen shows your darkness, message, return time and icon as you change them. Lock Now sits at the top; every setting is a plain sentence with a standard switch.
+- 🪟 **Liquid Glass** — the menu and the lock screen's unlock button use Liquid Glass on macOS 26 and later (frosted materials on macOS 14–15).
+- 🛡️ **New app icon and menu bar icon** — the shield is now the body of a lock whose green shackle is a progress bar: locked, but your work keeps going. The menu bar icon is the same shape in one color.
+- 🏷️ **Proper name everywhere** — Finder, System Settings, permission prompts and the menu say "Leave My Mac Alone". Your settings, permissions and intruder photos folder are unchanged, and the recovery command is still `killall LeaveMyMacAlone`.
+- 🌍 **Unlock prompt in your language** — the Touch ID / password prompt is now English on English systems ("Verify your identity to unlock your Mac.").
 
 ## Requirements
 - macOS 14 (Sonoma) or later
