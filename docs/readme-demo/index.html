@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1600, height=1000">
+    <title>LeaveMyMacAlone — README demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1600px; height: 1000px; overflow: hidden; background: #0d0e1a; }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        color: #f5f5f7;
+      }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+      /* ---------- camera ---------- */
+      #world {
+        position: absolute; left: 0; top: 0; width: 1600px; height: 1000px;
+        transform-origin: 0 0; will-change: transform;
+      }
+
+      /* ---------- desktop ---------- */
+      .wallpaper {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(900px 620px at 12% 92%, rgba(255, 138, 76, 0.75), transparent 70%),
+          radial-gradient(760px 560px at 48% 70%, rgba(214, 64, 140, 0.55), transparent 70%),
+          radial-gradient(980px 700px at 92% 8%, rgba(44, 140, 196, 0.6), transparent 70%),
+          radial-gradient(700px 500px at 30% 15%, rgba(96, 72, 200, 0.55), transparent 70%),
+          #1a1638;
+      }
+      .menubar {
+        position: absolute; left: 0; top: 0; width: 1600px; height: 28px;
+        background: rgba(20, 18, 40, 0.42);
+        backdrop-filter: blur(20px);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 16px; font-size: 13px; font-weight: 500; color: rgba(255, 255, 255, 0.92);
+      }
+      .menubar .left { display: flex; gap: 20px; align-items: center; }
+      .menubar .left b { font-weight: 700; }
+      .menubar .right { display: flex; gap: 18px; align-items: center; }
+      .mb-icon { width: 17px; height: 17px; display: block; }
+      #shield-item {
+        position: absolute; left: 1241px; top: 2px; width: 33px; height: 24px;
+        border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      }
+      #shield-hl { position: absolute; inset: 0; border-radius: 6px; background: rgba(255,255,255,0.22); opacity: 0; }
+
+      /* export window */
+      .window {
+        position: absolute; border-radius: 16px; overflow: hidden;
+        background: rgba(38, 36, 48, 0.94);
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 30px 80px rgba(0,0,0,0.55);
+      }
+      .titlebar { height: 44px; display: flex; align-items: center; padding: 0 16px; gap: 8px; position: relative; }
+      .tl { width: 12px; height: 12px; border-radius: 50%; }
+      .titlebar .t { position: absolute; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); }
+      #export { left: 250px; top: 300px; width: 640px; height: 268px; }
+      .export-body { display: flex; gap: 24px; padding: 18px 28px 0; }
+      .thumb {
+        width: 176px; height: 110px; border-radius: 10px; flex: none; position: relative; overflow: hidden;
+        background: radial-gradient(120px 90px at 30% 70%, #ffb347, transparent 70%),
+                    radial-gradient(140px 100px at 80% 20%, #4fa3e0, transparent 70%), #2b4a6b;
+      }
+      .thumb .hill { position: absolute; left: -20px; right: -20px; bottom: -40px; height: 80px; border-radius: 50%; background: #1d3a2a; }
+      .export-info { flex: 1; display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+      .fname { font-size: 17px; font-weight: 700; }
+      .fmeta { font-size: 13px; color: rgba(255,255,255,0.55); }
+      .bar { width: 100%; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.12); overflow: hidden; margin-top: 8px; }
+      #bar-fill { display: block; width: 100%; height: 100%; border-radius: 4px; background: #0a84ff; transform-origin: 0 50%; }
+      .status-row { display: flex; justify-content: space-between; font-size: 13px; color: rgba(255,255,255,0.7); }
+      #pct { font-variant-numeric: tabular-nums; font-weight: 600; color: #fff; }
+      #done { color: #30d158; font-weight: 700; opacity: 0; }
+      .export-foot { display: flex; justify-content: flex-end; padding: 22px 28px 0; }
+      .btn-plain { font-size: 13px; padding: 6px 16px; border-radius: 8px; background: rgba(255,255,255,0.12); }
+
+      #notes { left: 960px; top: 560px; width: 400px; height: 270px; background: rgba(48, 44, 40, 0.9); }
+      .notes-body { padding: 12px 24px; font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.8); }
+      .notes-body h4 { font-size: 20px; margin-bottom: 6px; color: #fff; }
+
+      /* menu panel (real capture) + live-preview dim */
+      #preview-dim { position: absolute; inset: 0; background: #000; opacity: 0; }
+      #menu {
+        position: absolute; left: 1241px; top: 30px; width: 320px; height: 924px;
+        transform-origin: 50% 0; opacity: 0;
+        filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
+      }
+      #menu img { display: block; width: 320px; height: 924px; }
+      #lock-now-press { position: absolute; left: 14px; top: 132px; width: 238px; height: 46px; border-radius: 23px; background: #000; opacity: 0; }
+
+      /* ---------- shield (lock screen) ---------- */
+      #shield { position: absolute; inset: 0; }
+      #shield-dim { position: absolute; inset: 0; background: #000; opacity: 0; }
+      #cat {
+        position: absolute; left: 0; top: 0; width: 144px; height: 144px;
+        font-size: 118px; line-height: 144px; text-align: center; opacity: 0;
+      }
+      #lock-content {
+        position: absolute; left: 0; top: 0; width: 1600px; height: 1000px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 14px; color: #fff; text-shadow: 0 0 6px rgba(0,0,0,0.6); opacity: 0;
+      }
+      #lock-glyph { position: relative; width: 60px; height: 60px; }
+      #lock-glyph svg { position: absolute; inset: 0; width: 60px; height: 60px; filter: drop-shadow(0 0 6px rgba(0,0,0,0.6)); }
+      #lock-open { opacity: 0; }
+      .status-swap { position: relative; height: 24px; width: 300px; }
+      .status-swap span { position: absolute; left: 0; right: 0; text-align: center; font-size: 20px; font-weight: 500; }
+      #st-unlocking { opacity: 0; }
+      .away { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0; }
+      .away .h { font-size: 22px; font-weight: 600; }
+      .away .r { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.85); }
+      .clock { font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+      #unlock-btn {
+        margin-top: 10px; display: flex; align-items: center; gap: 8px;
+        padding: 12px 22px; border-radius: 999px; font-size: 15px; font-weight: 600;
+        background: rgba(255,255,255,0.16);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28), inset 0 1px 0 rgba(255,255,255,0.35);
+        backdrop-filter: blur(12px); text-shadow: none;
+      }
+      #unlock-btn svg { width: 15px; height: 15px; }
+
+      /* click ripple */
+      .ripple {
+        position: absolute; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+        border-radius: 50%; border: 3px solid rgba(255,255,255,0.9); opacity: 0;
+      }
+
+      /* blocked keys */
+      #keys { position: absolute; left: 0; top: 690px; width: 1600px; display: flex; justify-content: center; gap: 14px; }
+      .key {
+        position: relative; width: 58px; height: 58px; border-radius: 12px;
+        background: rgba(255,255,255,0.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), 0 4px 0 rgba(0,0,0,0.35);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: 600; color: #fff; opacity: 0;
+      }
+      .key::after {
+        content: ""; position: absolute; left: 6px; right: 6px; top: 27px; height: 4px; border-radius: 2px;
+        background: #ff453a; transform: rotate(-35deg);
+      }
+
+      /* Touch ID dialog */
+      #auth {
+        position: absolute; left: 650px; top: 330px; width: 300px; border-radius: 26px;
+        background: #2c2a34;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.14), 0 30px 90px rgba(0,0,0,0.6);
+        display: flex; flex-direction: column; align-items: center; padding: 26px 22px 18px; gap: 10px;
+        opacity: 0; text-align: center;
+      }
+      #auth img { width: 64px; height: 64px; }
+      #auth .a-title { font-size: 15px; font-weight: 700; }
+      #auth .a-text { font-size: 13px; line-height: 1.4; color: rgba(255,255,255,0.85); }
+      #fp { position: relative; width: 64px; height: 64px; margin: 6px 0; }
+      #fp svg { position: absolute; inset: 0; width: 64px; height: 64px; }
+      #fp-fill { clip-path: inset(100% 0 0 0); }
+      #auth .a-hint { font-size: 12px; color: rgba(255,255,255,0.6); }
+      .a-btns { display: flex; gap: 8px; width: 100%; margin-top: 6px; }
+      .a-btns div { flex: 1; font-size: 13px; padding: 7px 0; border-radius: 999px; background: rgba(255,255,255,0.12); }
+
+      /* cursor */
+      #cursor { position: absolute; left: 0; top: 0; width: 26px; height: 38px; transform-origin: 4px 3px; }
+      #cursor svg { width: 26px; height: 38px; display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.45)); }
+
+      /* ---------- overlay (outside camera) ---------- */
+      #caption-wrap { position: absolute; left: 0; right: 0; bottom: 54px; display: flex; justify-content: center; }
+      .caption {
+        position: absolute; bottom: 0; padding: 18px 34px; border-radius: 999px;
+        background: rgba(12, 12, 20, 0.82); box-shadow: 0 0 0 1px rgba(255,255,255,0.14), 0 16px 40px rgba(0,0,0,0.45);
+        font-size: 34px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; opacity: 0;
+      }
+      .caption em { font-style: normal; color: #ffd60a; }
+      #fade { position: absolute; inset: 0; background: #0d0e1a; opacity: 1; }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-0aez" id="root" data-composition-id="main" data-start="0" data-duration="13" data-width="1600" data-height="1000">
+      <div data-hf-id="hf-j427" id="world">
+        <div data-hf-id="hf-9p0i" class="wallpaper"></div>
+
+        <div data-hf-id="hf-lwoe" class="window" id="notes" data-layout-allow-overflow="">
+          <div data-hf-id="hf-t179" class="titlebar">
+            <div data-hf-id="hf-qlyo" class="tl" style="background:#ff5f57"></div><div data-hf-id="hf-6lec" class="tl" style="background:#febc2e"></div><div data-hf-id="hf-pq06" class="tl" style="background:#28c840"></div>
+          </div>
+          <div data-hf-id="hf-7mys" class="notes-body">
+            <h4 data-hf-id="hf-e1g6">Before lunch</h4>
+            <div data-hf-id="hf-rxht">• Export the trip video</div>
+            <div data-hf-id="hf-uyrq">• Lock the Mac, keep it running</div>
+            <div data-hf-id="hf-cphw">• Upload when back</div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-9zx8" class="window" id="export">
+          <div data-hf-id="hf-hdop" class="titlebar">
+            <div data-hf-id="hf-4io8" class="tl" style="background:#ff5f57"></div><div data-hf-id="hf-5yp8" class="tl" style="background:#febc2e"></div><div data-hf-id="hf-673e" class="tl" style="background:#28c840"></div>
+            <div data-hf-id="hf-1lwq" class="t">Export</div>
+          </div>
+          <div data-hf-id="hf-weor" class="export-body">
+            <div data-hf-id="hf-mixc" class="thumb"><div data-hf-id="hf-a4v0" class="hill" data-layout-allow-overflow=""></div></div>
+            <div data-hf-id="hf-uyyz" class="export-info">
+              <div data-hf-id="hf-kc1p" class="fname">Trip Highlights.mov</div>
+              <div data-hf-id="hf-b817" class="fmeta">4K · 12 min · Saving to Movies</div>
+              <div data-hf-id="hf-ufsv" class="bar"><span data-hf-id="hf-dcil" id="bar-fill"></span></div>
+              <div data-hf-id="hf-a36h" class="status-row"><span data-hf-id="hf-iilh" id="pct">Exporting… 38%</span><span data-hf-id="hf-9jj7" id="done">Done ✓</span></div>
+            </div>
+          </div>
+          <div data-hf-id="hf-vhdb" class="export-foot"><div data-hf-id="hf-tcvx" class="btn-plain">Cancel</div></div>
+        </div>
+
+        <div data-hf-id="hf-7y28" class="menubar">
+          <div data-hf-id="hf-i0dv" class="left">
+            <svg data-hf-id="hf-s51j" class="mb-icon" viewBox="0 0 20 20"><circle data-hf-id="hf-jm3j" cx="10" cy="10" r="7" fill="none" stroke="#fff" stroke-width="2" /><circle data-hf-id="hf-fhdy" cx="10" cy="10" r="2.5" fill="#fff" /></svg>
+            <b data-hf-id="hf-27jn">Export</b><span data-hf-id="hf-ycg7">File</span><span data-hf-id="hf-ge9h">Edit</span><span data-hf-id="hf-yjbw">View</span><span data-hf-id="hf-agjl">Window</span>
+          </div>
+          <div data-hf-id="hf-8dr2" class="right">
+            <span data-hf-id="hf-gfqc" style="width:33px"></span>
+            <svg data-hf-id="hf-6e1z" class="mb-icon" viewBox="0 0 20 20"><path data-hf-id="hf-tlum" d="M2 8a12 12 0 0 1 16 0M5 11a8 8 0 0 1 10 0M8 14a4 4 0 0 1 4 0" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" /><circle data-hf-id="hf-99tj" cx="10" cy="16.5" r="1.2" fill="#fff" /></svg>
+            <svg data-hf-id="hf-g3mt" class="mb-icon" viewBox="0 0 26 20" style="width:24px"><rect data-hf-id="hf-n06j" x="1" y="5" width="21" height="10" rx="3" fill="none" stroke="#fff" stroke-width="1.4" /><rect data-hf-id="hf-ryrb" x="3" y="7" width="14" height="6" rx="1.5" fill="#fff" /><rect data-hf-id="hf-qdtu" x="23" y="8.5" width="2" height="3" rx="1" fill="#fff" /></svg>
+            <span data-hf-id="hf-ptks">Sat Oct 10&#160;&#160;2:05 PM</span>
+          </div>
+        </div>
+        <div data-hf-id="hf-5vpq" id="shield-item">
+          <div data-hf-id="hf-hp53" id="shield-hl"></div>
+          <svg data-hf-id="hf-3qum" class="mb-icon" viewBox="0 0 20 20" style="position:relative">
+            <path data-hf-id="hf-o1k1" d="M10 1.8 3.6 4.3v4.6c0 4.2 2.7 7.8 6.4 9.2 3.7-1.4 6.4-5 6.4-9.2V4.3z" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
+            <rect data-hf-id="hf-7ouj" x="7" y="9" width="6" height="4.6" rx="1" fill="#fff" />
+            <path data-hf-id="hf-4z5r" d="M8.2 9V7.6a1.8 1.8 0 0 1 3.6 0V9" fill="none" stroke="#fff" stroke-width="1.3" />
+          </svg>
+        </div>
+
+        <div data-hf-id="hf-i5jq" id="preview-dim"></div>
+        <div data-hf-id="hf-cjvc" id="menu">
+          <img data-hf-id="hf-23r0" src="assets/menu.png" alt="LeaveMyMacAlone menu">
+          <div data-hf-id="hf-u69t" id="lock-now-press"></div>
+        </div>
+
+        <div data-hf-id="hf-bczm" id="shield">
+          <div data-hf-id="hf-pnr3" id="shield-dim"></div>
+          <div data-hf-id="hf-tyaz" id="cat" data-layout-allow-overlap="" data-layout-allow-overflow="" aria-hidden="true">🐱</div>
+          <div data-hf-id="hf-5oew" id="lock-content">
+            <div data-hf-id="hf-rgk5" id="lock-glyph">
+              <svg data-hf-id="hf-thzl" id="lock-closed" viewBox="0 0 60 60"><path data-hf-id="hf-exxj" d="M19 27v-7a11 11 0 0 1 22 0v7" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" /><rect data-hf-id="hf-ldq5" x="12" y="26" width="36" height="28" rx="7" fill="#fff" /></svg>
+              <svg data-hf-id="hf-exnl" id="lock-open" viewBox="0 0 60 60"><path data-hf-id="hf-o1uk" d="M19 27v-7a11 11 0 0 1 21.5-3.2" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" transform="rotate(-18 19 27) translate(-3 -2)" /><rect data-hf-id="hf-6qj5" x="12" y="26" width="36" height="28" rx="7" fill="#fff" /></svg>
+            </div>
+            <div data-hf-id="hf-odt6" class="status-swap"><span data-hf-id="hf-c45m" id="st-locked" data-layout-allow-overlap="">Locked</span><span data-hf-id="hf-8xd6" id="st-unlocking">Unlocking…</span></div>
+            <div data-hf-id="hf-5uh2" class="away"><div data-hf-id="hf-ohrb" class="h" data-layout-allow-overlap="">In a meeting</div><div data-hf-id="hf-m9c4" class="r" data-layout-allow-overlap="">Back at 2:50 PM</div></div>
+            <div data-hf-id="hf-taxk" class="clock">2:05 PM</div>
+            <div data-hf-id="hf-wswa" id="unlock-btn">
+              <svg data-hf-id="hf-0n2h" viewBox="0 0 20 20"><path data-hf-id="hf-6lwu" d="M6.5 9V6.5a3.5 3.5 0 0 1 6.8-1.2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" /><rect data-hf-id="hf-h5st" x="3.5" y="8.5" width="13" height="10" rx="2.5" fill="#fff" /></svg>
+              Unlock
+            </div>
+          </div>
+          <div data-hf-id="hf-k305" id="keys"><div data-hf-id="hf-s9w7" class="key">h</div><div data-hf-id="hf-xfvk" class="key">e</div><div data-hf-id="hf-mbas" class="key">y</div><div data-hf-id="hf-la98" class="key">!</div></div>
+          <div data-hf-id="hf-watv" id="auth">
+            <img data-hf-id="hf-1hgd" src="assets/appicon.png" alt="">
+            <div data-hf-id="hf-ad23" class="a-title">LeaveMyMacAlone</div>
+            <div data-hf-id="hf-msp8" class="a-text">Verify your identity to unlock your Mac.</div>
+            <div data-hf-id="hf-ymr7" id="fp">
+              <svg data-hf-id="hf-bliq" viewBox="0 0 64 64" fill="none" stroke="rgba(255,69,96,0.35)" stroke-width="3" stroke-linecap="round">
+                <path data-hf-id="hf-0y0p" d="M14 26a19 19 0 0 1 36 0" /><path data-hf-id="hf-xean" d="M12 36a21 21 0 0 1 2-10" /><path data-hf-id="hf-hcor" d="M50 26c1.5 4 1.8 9 1 14" />
+                <path data-hf-id="hf-497e" d="M20 44c-1.5-4-2-8-1-12a13 13 0 0 1 26 2c0 6-1 10-3 15" /><path data-hf-id="hf-b12s" d="M26 52c-2-5-3-11-2-17a8 8 0 0 1 16 1c0 7-1 13-4 19" /><path data-hf-id="hf-qb1d" d="M32 34c0 8-1 15-4 22" />
+              </svg>
+              <svg data-hf-id="hf-sax7" id="fp-fill" viewBox="0 0 64 64" fill="none" stroke="#ff4560" stroke-width="3" stroke-linecap="round">
+                <path data-hf-id="hf-tuz1" d="M14 26a19 19 0 0 1 36 0" /><path data-hf-id="hf-328v" d="M12 36a21 21 0 0 1 2-10" /><path data-hf-id="hf-v9kr" d="M50 26c1.5 4 1.8 9 1 14" />
+                <path data-hf-id="hf-68qm" d="M20 44c-1.5-4-2-8-1-12a13 13 0 0 1 26 2c0 6-1 10-3 15" /><path data-hf-id="hf-nl1o" d="M26 52c-2-5-3-11-2-17a8 8 0 0 1 16 1c0 7-1 13-4 19" /><path data-hf-id="hf-5sol" d="M32 34c0 8-1 15-4 22" />
+              </svg>
+            </div>
+            <div data-hf-id="hf-0g7s" class="a-hint">Touch ID or enter your password</div>
+            <div data-hf-id="hf-sumt" class="a-btns"><div data-hf-id="hf-11ae">Use Password…</div><div data-hf-id="hf-kmfu">Cancel</div></div>
+          </div>
+        </div>
+
+        <div data-hf-id="hf-ganz" class="ripple" id="rp1"></div>
+        <div data-hf-id="hf-5f6c" class="ripple" id="rp2"></div>
+        <div data-hf-id="hf-66u5" class="ripple" id="rp3"></div>
+        <div data-hf-id="hf-oyju" class="ripple" id="rp4"></div>
+
+        <div data-hf-id="hf-8gdj" id="cursor">
+          <svg data-hf-id="hf-k24s" viewBox="0 0 26 38"><path data-hf-id="hf-f6yj" d="M3 2v28l7-7 4.6 10.5 4.4-1.9L14.4 21H24z" fill="#000" stroke="#fff" stroke-width="2" stroke-linejoin="round" /></svg>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-csyu" id="caption-wrap">
+        <div data-hf-id="hf-cczu" class="caption" id="cap1">Long export running? <em data-hf-id="hf-9htt">Step away</em> — it keeps going.</div>
+        <div data-hf-id="hf-ire5" class="caption" id="cap2">Lock in one click — or <em data-hf-id="hf-h20v">⌃ ⌥ ⌘ L</em></div>
+        <div data-hf-id="hf-lu7j" class="caption" id="cap3">Passers-by see <em data-hf-id="hf-ugd3">where you are</em></div>
+        <div data-hf-id="hf-wnex" class="caption" id="cap4">Keyboard and mouse are <em data-hf-id="hf-lnqh">blocked</em></div>
+        <div data-hf-id="hf-yvp4" class="caption" id="cap5">Only you get back in — <em data-hf-id="hf-zxo7">Touch ID</em> or password</div>
+        <div data-hf-id="hf-i97m" class="caption" id="cap6">Your export <em data-hf-id="hf-lgzu">never stopped</em> ✓</div>
+      </div>
+      <div data-hf-id="hf-128z" id="fade"></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const W = 1600, H = 1000;
+
+      // ---- camera: screen = S * p + T (origin 0 0) ----
+      const world = document.getElementById("world");
+      const cam = { s: 1, fx: W / 2, fy: H / 2 }; // focus point in world coords
+      function applyCamera() {
+        // Keep the focus point at screen center, but never show outside the world.
+        let tx = W / 2 - cam.s * cam.fx, ty = H / 2 - cam.s * cam.fy;
+        tx = Math.min(0, Math.max(W - cam.s * W, tx));
+        ty = Math.min(0, Math.max(H - cam.s * H, ty));
+        world.style.transform = `translate(${tx}px, ${ty}px) scale(${cam.s})`;
+      }
+      applyCamera();
+      const camTo = (s, fx, fy, at, dur) =>
+        tl.to(cam, { s, fx, fy, duration: dur, ease: "power2.inOut", onUpdate: applyCamera }, at);
+
+      // ---- loop fades ----
+      tl.fromTo("#fade", { opacity: 1 }, { opacity: 0, duration: 0.4, ease: "power1.out" }, 0);
+      tl.to("#fade", { opacity: 1, duration: 0.45, ease: "power1.in" }, 12.55);
+
+      // ---- export progress: 38% at 0 → 100% at 10.3, never pauses ----
+      const prog = { p: 38 };
+      const pct = document.getElementById("pct");
+      gsap.set("#bar-fill", { scaleX: 0.38 });
+      tl.to(prog, {
+        p: 100, duration: 10.3, ease: "none",
+        onUpdate: () => { pct.textContent = prog.p >= 100 ? "Exported 100%" : `Exporting… ${Math.floor(prog.p)}%`; },
+      }, 0);
+      tl.to("#bar-fill", { scaleX: 1, duration: 10.3, ease: "none" }, 0);
+      tl.to("#bar-fill", { backgroundColor: "#30d158", duration: 0.3 }, 10.3);
+      tl.fromTo("#done", { opacity: 0, x: -8 }, { opacity: 1, x: 0, duration: 0.35, ease: "back.out(2)" }, 10.35);
+
+      // ---- captions ----
+      const caps = [["#cap1", 0.35, 2.3], ["#cap2", 2.45, 3.45], ["#cap3", 3.95, 5.5], ["#cap4", 5.65, 7.6], ["#cap5", 7.75, 9.6], ["#cap6", 10.2, 12.4]];
+      caps.forEach(([sel, a, b]) => {
+        tl.fromTo(sel, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.32, ease: "power3.out" }, a);
+        tl.to(sel, { opacity: 0, y: -10, duration: 0.25, ease: "power2.in" }, b);
+      });
+
+      // ---- cursor helpers ----
+      gsap.set("#cursor", { x: 820, y: 760 });
+      const move = (x, y, at, dur, ease = "power2.inOut") => tl.to("#cursor", { x, y, duration: dur, ease }, at);
+      const click = (x, y, at, ring) => {
+        tl.to("#cursor", { scale: 0.85, duration: 0.08, ease: "power2.in", yoyo: true, repeat: 1 }, at);
+        tl.set(ring, { x, y, scale: 0.4, opacity: 0.9 }, at);
+        tl.to(ring, { scale: 2.6, opacity: 0, duration: 0.55, ease: "power2.out" }, at);
+      };
+
+      // ---- beat 1: open the menu (0.6 → 2.4) ----
+      move(1257, 14, 0.6, 0.85);
+      click(1257, 14, 1.5, "#rp1");
+      tl.to("#shield-hl", { opacity: 1, duration: 0.08 }, 1.5);
+      tl.fromTo("#menu", { opacity: 0, y: -8, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.28, ease: "power3.out" }, 1.55);
+      tl.to("#preview-dim", { opacity: 0.7, duration: 0.3, ease: "power1.out" }, 1.55);
+      camTo(1.55, 1360, 300, 1.6, 0.8);
+
+      // ---- beat 2: Lock Now (2.4 → 3.0) ----
+      const lockNow = { x: 1241 + 132, y: 30 + 155 };
+      move(lockNow.x, lockNow.y, 2.15, 0.5, "power3.out");
+      click(lockNow.x, lockNow.y, 2.8, "#rp2");
+      tl.to("#lock-now-press", { opacity: 0.18, duration: 0.08, yoyo: true, repeat: 1 }, 2.8);
+
+      // ---- beat 3: shield springs in (3.0) ----
+      tl.to("#menu", { opacity: 0, duration: 0.15, ease: "power1.in" }, 3.0);
+      tl.to("#shield-hl", { opacity: 0, duration: 0.1 }, 3.0);
+      tl.to("#preview-dim", { opacity: 0, duration: 0.2 }, 3.05);
+      tl.fromTo("#shield-dim", { opacity: 0 }, { opacity: 0.7, duration: 0.5, ease: "power2.out" }, 3.05);
+      tl.fromTo("#lock-content", { opacity: 0, scale: 0.85, filter: "blur(12px)" },
+        { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.55, ease: "back.out(1.15)" }, 3.05);
+      tl.to("#cursor", { opacity: 0, duration: 0.15 }, 3.05);
+      camTo(1.3, 800, 500, 3.0, 1.0);
+
+      // DVD-style cat: straight lines at 130 pt/s, bouncing off every edge.
+      const cat = document.getElementById("cat");
+      const tri = (d, travel) => { const m = d % (2 * travel); return m < travel ? m : 2 * travel - m; };
+      const bounce = { t: 0 };
+      const placeCat = () => {
+        const x = tri(bounce.t * 130 + 1080, W - 144), y = tri(bounce.t * 130 * 0.73 + 40, H - 144);
+        cat.style.transform = `translate(${x}px, ${y}px)`;
+      };
+      placeCat();
+      tl.to(bounce, { t: 6.5, duration: 6.5, ease: "none", onUpdate: placeCat }, 3.2);
+      tl.to(cat, { opacity: 1, duration: 0.3 }, 3.3);
+
+      // ---- beat 4: someone tries to use it (5.6 → 7.5) ----
+      tl.set("#cursor", { x: 1180, y: 830 }, 5.4);
+      tl.to("#cursor", { opacity: 1, duration: 0.15 }, 5.45);
+      move(1020, 640, 5.55, 0.45, "power3.out");
+      const shake = (at) => {
+        tl.to("#lock-glyph", { keyframes: { x: [-14, 12, -9, 7, 0] }, duration: 0.36, ease: "none" }, at);
+        tl.to("#lock-glyph", { keyframes: { scale: [1.3, 1] }, duration: 0.36, ease: "power1.inOut" }, at);
+      };
+      click(1020, 640, 6.1, "#rp3"); shake(6.12);
+      move(560, 360, 6.35, 0.35, "power3.out");
+      click(560, 360, 6.8, "#rp4"); shake(6.82);
+      tl.fromTo(".key", { opacity: 0, y: 14, scale: 0.8 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "back.out(2)", stagger: 0.12 }, 6.45);
+      tl.to(".key", { opacity: 0, duration: 0.25, stagger: 0.05 }, 7.35);
+
+      // ---- beat 5: unlock with Touch ID (7.6 → 9.4) ----
+      const btn = document.getElementById("unlock-btn");
+      // Measure the button's resting center in world space once (single-scene build).
+      const contentEl = document.getElementById("lock-content");
+      const saved = contentEl.style.cssText;
+      gsap.set(contentEl, { opacity: 1, scale: 1, filter: "none" });
+      const r = btn.getBoundingClientRect(), wr = world.getBoundingClientRect();
+      const s0 = wr.width / W;
+      const ub = { x: (r.left + r.width / 2 - wr.left) / s0, y: (r.top + r.height / 2 - wr.top) / s0 };
+      contentEl.style.cssText = saved;
+      move(ub.x + 6, ub.y + 4, 7.55, 0.55, "back.out(1.2)");
+      tl.to("#cursor", { scale: 0.85, duration: 0.08, ease: "power2.in", yoyo: true, repeat: 1 }, 8.2);
+      tl.to("#unlock-btn", { scale: 0.96, opacity: 0.85, duration: 0.08, yoyo: true, repeat: 1 }, 8.2);
+      tl.fromTo("#auth", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.4)" }, 8.35);
+      tl.to("#cursor", { opacity: 0, duration: 0.2 }, 8.4);
+      tl.fromTo("#fp-fill", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.7, ease: "power1.inOut" }, 8.75);
+      tl.to("#auth", { opacity: 0, scale: 0.96, duration: 0.2, ease: "power2.in" }, 9.55);
+
+      // ---- beat 6: lock opens and lifts away (9.75) ----
+      tl.to("#lock-closed", { opacity: 0, duration: 0.2 }, 9.75);
+      tl.fromTo("#lock-open", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.25, ease: "back.out(2)" }, 9.75);
+      tl.to("#st-locked", { opacity: 0, duration: 0.15 }, 9.75);
+      tl.to("#st-unlocking", { opacity: 1, duration: 0.15 }, 9.78);
+      tl.to(".away, #unlock-btn", { opacity: 0, duration: 0.2 }, 9.75);
+      tl.to("#cat", { opacity: 0, duration: 0.2 }, 9.75);
+      tl.to("#lock-content", { scale: 1.12, duration: 0.32, ease: "power2.out" }, 9.75);
+      tl.to("#lock-content", { opacity: 0, filter: "blur(12px)", duration: 0.45, ease: "power2.in" }, 10.07);
+      tl.to("#shield-dim", { opacity: 0, duration: 0.45, ease: "power2.in" }, 10.07);
+      camTo(1.35, 570, 434, 9.9, 0.9);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

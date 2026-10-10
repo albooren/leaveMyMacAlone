@@ -6,81 +6,129 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 [![Latest release](https://img.shields.io/github/v/release/albooren/leaveMyMacAlone?label=download&color=success)](https://github.com/albooren/leaveMyMacAlone/releases/latest)
 
-LeaveMyMacAlone is a tiny macOS menu-bar app. When you lock, the screen stays
-awake, an adjustable dim layer drops over it, and keyboard/mouse input is blocked.
-Unlocking needs **Touch ID or your password** — so whatever is running in the
-background (downloads, renders, builds…) keeps going uninterrupted.
+![Lock your Mac while an export keeps running, then unlock it with Touch ID](docs/media/demo.gif)
 
-## ✨ Features
-- 🔒 **One-tap lock** — "Lock Now" from the menu, or the **⌃⌥⌘L** hotkey.
-- 👆 **Touch ID / password** to unlock (Unlock button, or Space / Enter).
-- 🌗 **Adjustable darkness** — from a light tint to fully opaque; live preview while dragging.
-- 💬 **Lock-screen status** — tell passers-by where you are ("In a meeting", "At lunch", "Back soon" or your own text) and, optionally, when you'll be back.
-- 📀 **Moving icon** — an emoji (any — searchable picker right in the menu) or your own image drifts across the lock screen like the old DVD screensaver.
-- 👀 **Live preview** — the menu shows a mini lock screen with your darkness, message, return time and icon as you change them.
-- ⏸️ **Pauses media** — music and videos pause the moment you lock, so nothing keeps playing at an empty desk (not auto-resumed). Want your music to keep going? Turn off "Pause music and video".
-- ☕ **Stays awake** — keeps the display/system awake while locked (optional, can be turned off).
-- 📸 **Intruder capture** *(opt-in)* — snaps a front-camera photo if someone keeps trying to get past the lock; saved to `~/Pictures/LeaveMyMacAlone/`, with a notification on unlock that opens the folder.
-- 🖥️ **Covers full-screen apps** — locking from inside a full-screen app (Slack, Safari, a video) pulls it out of full-screen so the lock actually covers the screen.
-- 🪶 **Lean permissions** — Accessibility for the lock (asked the first time you lock); Camera + Notifications only if you turn on intruder capture.
-- 🧰 **Menu-bar app** — no Dock clutter, never auto-locks on launch. Liquid Glass design on macOS 26+ (materials on 14–15).
-- 🔄 **Automatic updates** — new versions download in the background, are verified (EdDSA signature + Developer ID), and install with a quick relaunch — never while the Mac is locked. Can be turned off in the menu.
-- 🆘 **SSH kill switch** — recover remotely with `killall` if it ever hangs.
-- 🌍 Turkish + English UI (follows the system language).
+You start a long download, a video export or a big upload — and then you need to
+step away. Leave My Mac Alone puts a dark "do not touch" screen over your Mac,
+blocks the keyboard and mouse, and lets **your work keep running underneath**.
+When you're back, unlock it with **Touch ID or your password**.
+
+**[⬇️ Download the latest version](https://github.com/albooren/leaveMyMacAlone/releases/latest)** · free · macOS 14 or newer
+
+## 🤔 Why not just use the Mac's own lock screen?
+
+The built-in lock is great for security, but it's not made for "I'm away, but my Mac is busy":
+
+| | Mac's own lock | Leave My Mac Alone |
+|---|---|---|
+| Your screen | Hidden | Still visible behind an adjustable dark layer — you can see your progress |
+| Going to sleep | The Mac can go to sleep after a while, which pauses downloads and exports | Keeps the Mac awake while locked (you can turn this off) |
+| Tell people where you are | — | "In a meeting · Back at 2:50 PM" right on the screen |
+| Getting back in | Password / Touch ID | Password / Touch ID |
+
+## ✨ What it does
+
+- 🔒 **Lock in one click** — from the menu bar, or press **Control + Option + Command + L**.
+- 🙅 **Nobody can use your Mac** — typing and clicking do nothing while it's locked.
+- 👆 **Only you can unlock it** — with Touch ID or your Mac password.
+- ⏳ **Your work keeps going** — downloads, exports and uploads run on while you're away.
+- 💬 **Leave a note** — "In a meeting", "At lunch", "Back soon" or your own words, plus when you'll be back.
+- 🌗 **Choose how dark** — from a light tint to fully black.
+
+<details>
+<summary><b>All features</b></summary>
+
+- 📀 **Moving icon** — any emoji (searchable) or your own picture floats across the lock screen, like the old DVD screensaver.
+- 👀 **Live preview** — the menu shows a mini lock screen with your darkness, message and icon as you change them.
+- ⏸️ **Pauses music and video** when you lock, so nothing keeps playing at an empty desk (they don't restart by themselves). Want music to keep going? Turn off "Pause music and video".
+- ☕ **Stays awake** while locked (optional).
+- 📸 **Intruder photo** *(off by default)* — if someone keeps trying to get in, it takes a photo with the front camera and saves it to the `Pictures/LeaveMyMacAlone` folder on your Mac. You get a notification when you unlock.
+- 🖥️ **Works over full-screen apps** — if you lock from a full-screen app (Slack, Safari, a video), it steps out of full screen so the lock covers everything.
+- 🔄 **Updates itself** — new versions download quietly and install with a quick restart of the app, never while the Mac is locked. You can turn this off in the menu.
+- 🌍 English and Turkish (follows your Mac's language).
+
+</details>
+
+<p align="center">
+  <img src="docs/media/menu.png" width="280" alt="The menu: Lock Now, darkness, message, moving icon and while-locked options">
+</p>
 
 ## 📦 Install
-1. Download **`LeaveMyMacAlone.dmg`** from
-   [Releases](https://github.com/albooren/leaveMyMacAlone/releases/latest), open it,
-   and drag the app to **Applications**.
-2. Launch it → a shield icon appears in the menu bar.
-3. The **first time you lock**, it asks for **Accessibility** (needed to block input):
-   click "Open Accessibility Settings" → turn on `LeaveMyMacAlone` → it locks
-   automatically once granted.
 
-## 🎛️ Usage
-| Action | How |
+1. **[Download `LeaveMyMacAlone.dmg`](https://github.com/albooren/leaveMyMacAlone/releases/latest)**, open it and drag the app into **Applications**.
+2. Open the app. A small **shield icon** appears at the top right of your screen, in the menu bar. (There's no window and no Dock icon — that's normal.)
+3. Click the shield → **Lock Now**. The first time, your Mac asks for **Accessibility** permission:
+   click **Open Accessibility Settings**, turn on **LeaveMyMacAlone**, and it locks right away.
+
+> **Why Accessibility?** It's the macOS permission that lets an app block the keyboard and mouse.
+> The app uses it only for that — it doesn't read what you type and sends nothing anywhere.
+
+## 🎛️ How to use it
+
+| To… | Do this |
 |---|---|
-| **Lock** | Menu > Lock Now · or **⌃⌥⌘L** |
-| **Unlock** | Unlock button / **Space** / **Enter** → Touch ID or password |
-| **Darkness** | Menu > slider (set it while unlocked; persists) |
-| **Lock-screen message** | Menu > Message → preset or custom text · "Return time" switch, − / + to step it or click the time to type any duration ("50", "1:30") — counted from when you lock |
-| **Moving icon** | Menu > Moving icon → emoji, ⋯ to search all emoji, or 🖼 for your own image · Size: Small / Medium / Large |
-| **While locked** | Menu > switches: Pause music and video, Keep the Mac awake, Photograph intruders (with "Open photos") · Update automatically (with "Check now") |
-| **Quit** | Menu > Quit |
+| **Lock** | Click the shield in the menu bar → **Lock Now**, or press **Control + Option + Command + L** |
+| **Unlock** | Click **Unlock** (or press Space / Enter), then use Touch ID or your password |
+| **Change how dark it is** | Shield menu → **Darkness** slider |
+| **Leave a message** | Shield menu → **Message** → pick one or write your own. Turn on **Return time** to show when you'll be back |
+| **Add a moving icon** | Shield menu → **Moving icon** → pick an emoji, ⋯ to search all emoji, or 🖼 for your own picture |
+| **Change what happens while locked** | Shield menu → **While locked** switches (pause music, keep awake, intruder photo, auto-update) |
+| **Quit** | Shield menu → power button |
 
-## 🆘 Recovery if it hangs (SSH kill switch)
-If the lock ever gets stuck, kill the app **from another device** — your background
-work and session keep running (unlike a forced restart):
-```bash
-ssh <user>@<mac-ip> 'killall LeaveMyMacAlone'
-```
+## ⚠️ Good to know
 
-**Prerequisite (on the Mac, once):** System Settings > General > Sharing >
-**Remote Login** → ON.
-(`systemsetup -setremotelogin on` from Terminal needs Full Disk Access; the GUI
-toggle above is easiest.)
+- **Closing a laptop's lid still puts it to sleep.** Keep the lid open (or use an external display and power).
+- **Holding the power button** always turns the Mac off — no app can block that.
+- It's meant to stop a curious co-worker or a cat on the keyboard, **not** to replace your Mac's real security.
+  For real security, also use your Mac's own lock and FileVault.
+- Some **games** use their own kind of full screen that the app can't step out of; the lock may end up behind them.
+- When intruder photo is on, the **green camera light turns on** — that's built into the hardware, so it's a deterrent, not a hidden camera.
+- It's downloaded from here rather than the Mac App Store (blocking the keyboard and mouse needs permissions App Store apps can't have).
+  It's signed and checked by Apple (Developer ID + notarization), so it opens normally.
 
-### 📱 One tap from iPhone (Shortcuts)
-Set this up **before** you ever get stuck:
-1. **Shortcuts** app → new shortcut → **"Run Script Over SSH"** action.
+## 🔐 Privacy
+
+- **No tracking, no accounts, no data collection.**
+- The only thing it fetches from the internet is the update check (once a day, from this GitHub page). Nothing about you or your Mac is sent.
+  Turn off **Update automatically** and it never goes online unless you press **Check now**.
+- Intruder photos stay on your Mac only, in `Pictures/LeaveMyMacAlone`. They are never uploaded.
+
+## 🆘 Advanced: if the lock ever gets stuck
+
+Normally, **Unlock → Touch ID / password** is all you need. If the app ever freezes and won't
+unlock, you can close it **from your iPhone or another computer** — your open apps and work keep
+running (unlike forcing a restart).
+
+<details>
+<summary><b>Set this up once, before you need it</b></summary>
+
+**On the Mac:** System Settings → General → Sharing → turn on **Remote Login**.
+
+**One tap from iPhone (Shortcuts app):**
+1. Create a new shortcut → add the **"Run Script Over SSH"** action.
 2. Fill in:
-   - **Host:** your Mac's IP (e.g. `192.168.1.x`) or local name (`<computer-name>.local`)
+   - **Host:** your Mac's IP address (e.g. `192.168.1.x`) or its local name (`<computer-name>.local`)
    - **Port:** `22`
    - **User:** your Mac username
    - **Authentication:** Password → your Mac login password (or an SSH key)
    - **Script:** `killall LeaveMyMacAlone`
-3. Name it "Unlock Mac"; add it to the Home Screen / Action Button / Siri.
+3. Name it "Unlock Mac" and add it to your Home Screen, Action Button or Siri.
 
-When the Mac hangs, tap the shortcut (on the same Wi-Fi) → the lock dies, the Mac is back.
+If the Mac gets stuck, tap the shortcut (iPhone and Mac on the same Wi-Fi) — the lock closes and the Mac is back.
 
-> **Tips:** the iPhone and Mac must be on the **same network**. The IP can change —
-> use a DHCP reservation on your router or the `.local` name. To reach it away from
-> home, set up a free VPN like **Tailscale**.
->
-> **Last resort:** with no SSH, **holding the power button** force-restarts the Mac
-> (software can't block that) — but your background work is lost too.
+**From another computer's Terminal:**
+```bash
+ssh <user>@<mac-ip> 'killall LeaveMyMacAlone'
+```
 
-## 🛠️ Development
+> **Tips:** the IP address can change — reserve it on your router or use the `.local` name.
+> To reach the Mac away from home, a free VPN like **Tailscale** works.
+> **Last resort:** holding the power button restarts the Mac, but unsaved work is lost.
+
+</details>
+
+## 🛠️ For developers
+
 ```bash
 swift build && swift test     # build + tests (68 tests)
 ./bundle.sh                   # local .app (self-signed dev identity)
@@ -88,25 +136,12 @@ swift build && swift test     # build + tests (68 tests)
 Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds
 it automatically) and the Accessibility grant survives rebuilds.
 
-## ⚠️ Honest limitations
-- On a bare laptop, **closing the lid** still sleeps it (hardware clamshell). Keep
-  the lid open, or attach an external display + power.
-- **Holding the power button** shuts it down at the hardware level (software can't block it).
-- It's non-sandboxed, so it **can't be on the Mac App Store**; it ships as a directly
-  distributed, Developer ID-signed download.
-- A few **games** use their own (non-native) full-screen that macOS can't pull out of — the
-  lock may land behind those. Native full-screen apps (Slack, Safari, video) are handled.
-- Intruder capture's **green camera light is hardware-enforced** — it's evidence/deterrence, not covert.
-- It stops a prankster co-worker; it is not a military-grade lock.
+How it works: LocalAuthentication for Touch ID/password, a CoreGraphics event tap to block
+input, IOKit to keep the Mac awake, and [Sparkle](https://sparkle-project.org) for
+EdDSA-signed updates. It's non-sandboxed, so it ships as a Developer ID–signed, notarized download.
 
-## 🔐 Privacy
-No data collection. The only network request is the update check: a daily
-download of the public `appcast.xml` from this repo's GitHub releases (and the
-new version, when there is one) — nothing about you or your Mac is sent. Turn
-off "Update automatically" in the menu and the app makes no requests unless you
-press "Check now". LocalAuthentication for Touch ID/password, IOKit to keep awake,
-a CoreGraphics event tap to block input, [Sparkle](https://sparkle-project.org) for
-updates. Intruder photos (opt-in) are saved only to `~/Pictures/LeaveMyMacAlone/` on your Mac — never uploaded. All local.
+The demo GIF is a [HyperFrames](https://hyperframes.heygen.com) composition in
+[`docs/readme-demo`](docs/readme-demo) — edit `index.html` and re-render to update it.
 
 ## 📄 License
 [MIT](LICENSE) © 2026 Alperen Kişi
