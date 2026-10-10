@@ -92,6 +92,8 @@ The built-in lock is great for security, but it's not made for "I'm away, but my
 - The only thing it fetches from the internet is the update check (once a day, from this GitHub page). Nothing about you or your Mac is sent.
   Turn off **Update automatically** and it never goes online unless you press **Check now**.
 - Intruder photos stay on your Mac only, in `Pictures/LeaveMyMacAlone`. They are never uploaded.
+- Under the hood it uses only standard macOS features (Touch ID / password check, input blocking, keep-awake)
+  plus [Sparkle](https://sparkle-project.org) for signed updates — the code is all here to check.
 
 ## 🆘 Advanced: if the lock ever gets stuck
 
@@ -127,21 +129,9 @@ ssh <user>@<mac-ip> 'killall LeaveMyMacAlone'
 
 </details>
 
-## 🛠️ For developers
+## 🛠️ Building from source
 
-```bash
-swift build && swift test     # build + tests (68 tests)
-./bundle.sh                   # local .app (self-signed dev identity)
-```
-Create a one-time `LeaveMyMacAlone Dev` code-signing certificate (`bundle.sh` finds
-it automatically) and the Accessibility grant survives rebuilds.
-
-How it works: LocalAuthentication for Touch ID/password, a CoreGraphics event tap to block
-input, IOKit to keep the Mac awake, and [Sparkle](https://sparkle-project.org) for
-EdDSA-signed updates. It's non-sandboxed, so it ships as a Developer ID–signed, notarized download.
-
-The demo GIF is a [HyperFrames](https://hyperframes.heygen.com) composition in
-[`docs/readme-demo`](docs/readme-demo) — edit `index.html` and re-render to update it.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## 📄 License
 [MIT](LICENSE) © 2026 Alperen Kişi
