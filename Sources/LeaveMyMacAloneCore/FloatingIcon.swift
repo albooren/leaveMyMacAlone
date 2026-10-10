@@ -49,6 +49,16 @@ public enum BounceMath {
     }
 }
 
+/// Aspect-fit of an image into a square box. The drifting icon bounces with
+/// this size, not the box's, so a wide image touches the top and bottom edges.
+public enum IconFit {
+    public static func size(width: Double, height: Double, box: Double) -> (width: Double, height: Double) {
+        guard width > 0, height > 0 else { return (0, 0) }
+        let scale = box / max(width, height)
+        return (width * scale, height * scale)
+    }
+}
+
 /// The "back in…" choices stepped through with − / +.
 public enum ReturnTimeSteps {
     public static let minutes = [15, 30, 45, 60, 90, 120, 180, 240]
