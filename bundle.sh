@@ -24,7 +24,7 @@ mkdir -p "${APP}/Contents/Resources"
 
 # The debug-only test password must never ship. It is behind #if DEBUG; this is the
 # check that holds if that ever changes.
-if grep -aq "LMMA_TEST_PASSWORD" "${BIN}"; then
+if grep -aq "LMMA_TEST_" "${BIN}"; then
     echo "error: the debug test hook is present in the release binary" >&2
     exit 1
 fi

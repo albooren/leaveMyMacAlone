@@ -71,7 +71,8 @@ struct AuthPanelView: View {
         switch message {
         case .wrongPassword: return "Parola yanlış"
         case .retryLater(let seconds): return "Çok fazla deneme. \(seconds) sn sonra tekrar dene."
-        case .cannotVerify: return "Parola şu an doğrulanamadı."
+        case .cannotVerify:
+            return "Parola şu an doğrulanamadı. Touch ID'yi dene; olmazsa güç düğmesini basılı tutup yeniden başlat."
         }
     }
 }
@@ -114,9 +115,10 @@ private final class BiometricHostView: NSView {
 }
 
 /// A real `NSSecureTextField`: AppKit turns Secure Event Input on and off for it, and
-/// the password stays out of SwiftUI state. Pasting doesn't work, on purpose: the app
-/// has no Edit menu to provide Cmd+V, and a passer-by could otherwise submit whatever
-/// is on the clipboard, which might be the owner's password.
+/// the password stays out of SwiftUI state. Pasting doesn't work, on purpose: a passer-by
+/// could otherwise submit whatever is on the clipboard, which might be the owner's
+/// password. The app has no Edit menu to provide Cmd+V, and KeyableWindow drops the clicks
+/// that would open the field's context menu.
 private struct PasswordField: NSViewRepresentable {
     let isEnabled: Bool
     let clearToken: Int
@@ -174,15 +176,32 @@ private struct PasswordField: NSViewRepresentable {
 }
 
 private final class FocusingSecureField: NSSecureTextField {
+    // Going through a loss of the foreground, another display's shield can come back as
+    // the key window instead of the panel's, and nothing announces that. Typing would be
+    // lost and Secure Event Input stay off. This is the panel's only input, so it just
+    // keeps checking while it is on screen.
+    private static let focusCheckInterval: TimeInterval = 0.1
+    private var focusTimer: Timer?
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        focusTimer?.invalidate()
+        focusTimer = nil
+        guard window != nil else { return }
+        let timer = Timer(timeInterval: Self.focusCheckInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.takeFocus() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        focusTimer = timer
         DispatchQueue.main.async { [weak self] in self?.takeFocus() }
     }
 
     func takeFocus() {
-        guard let window, isEnabled else { return }
+        guard let window, isEnabled, NSApp.isActive else { return }
+        if !window.isKeyWindow { window.makeKey() }
         if let editor = currentEditor(), window.firstResponder === editor { return }
         window.makeFirstResponder(self)
+        // Taking focus selects everything, so the next key would replace what is typed.
+        currentEditor()?.selectedRange = NSRange(location: stringValue.utf16.count, length: 0)
     }
 }

@@ -29,16 +29,18 @@ final class AppController {
     private var authTask: Task<Void, Never>?
     private var watchdogTask: Task<Void, Never>?
     // Upper bound on how long the auth panel stays open unattended. Counted from the
-    // panel opening or the last rejected password; on expiry the panel closes (which
+    // panel opening or the last password submitted; on expiry the panel closes (which
     // clears anything typed) and the Mac is simply locked again.
-    private let authTimeout: Duration = .seconds(60)
+    private let authTimeout: Duration
     // Retain power-notification tokens for the app's lifetime.
     private var powerObservers: [NSObjectProtocol] = []
     // Drives the step-by-step first-run permission onboarding.
     private var onboardingTask: Task<Void, Never>?
 
-    init(passwordVerifier: any PasswordVerifying = makePasswordVerifier()) {
+    init(passwordVerifier: any PasswordVerifying = makePasswordVerifier(),
+         authTimeout: Duration = makeAuthTimeout()) {
         self.passwordVerifier = passwordVerifier
+        self.authTimeout = authTimeout
     }
 
     /// Whether the app may quit right now. See AppDelegate.applicationShouldTerminate.
@@ -116,13 +118,6 @@ final class AppController {
     /// The actual locking sequence (Accessibility already granted).
     private func engageLock() {
         guard machine.lock() else { return } // ignore if not unlocked
-        // If the user is inside another app's native full-screen Space, our shield
-        // (a third-party window) cannot cover it — pull that app out of full-screen
-        // so the lock lands on a Desktop Space the shield covers. Any other full-screen
-        // app goes too, so no uncovered Space is left on another display or one swipe
-        // away. No-op otherwise.
-        FullScreenExiter.exitFrontmostFullScreen()
-        FullScreenExiter.exitEveryFullScreenInBackground()
         intruder.beginSession(enabled: store.captureIntruderPhoto)
         // Stop audio/video so nothing keeps playing (or leaking sound) at an
         // unattended desk — unless the owner chose to keep their music going.
@@ -270,9 +265,13 @@ final class AppController {
         guard epoch == authEpoch, machine.state == .authenticating, !password.isEmpty else { return }
         let wait = passwordAttempts.retryDelay(now: ProcessInfo.processInfo.systemUptime)
         guard wait <= 0 else {
+            startWatchdog(epoch: epoch)
             shield.rejectPassword(.retryLater(seconds: Int(wait.rounded(.up))))
             return
         }
+        // A check in flight must not be cut off by the timeout, or a correct password
+        // would be thrown away. If it ever hangs, the panel's cancel button still works.
+        cancelWatchdog()
         shield.setAuthVerifying(true)
         Task { @MainActor in
             let result = await passwordVerifier.verify(password)
@@ -285,6 +284,7 @@ final class AppController {
                 self.noteRejectedPassword(epoch: epoch)
             case .unavailable:
                 // Says nothing about the password, so it costs no attempt.
+                self.startWatchdog(epoch: epoch)
                 self.shield.rejectPassword(.cannotVerify)
             }
         }
@@ -397,25 +397,12 @@ final class AppController {
                 self?.handleAppActivated(pid: pid)
             }
         })
-        // An app can enter full screen while locked, creating a Space the shield does
-        // not cover: take it straight back out.
-        powerObservers.append(center.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.handleSpaceChange() }
-        })
     }
 
     private func handleAppActivated(pid: pid_t) {
         guard machine.state != .unlocked else { return }
         // Ignore ourselves: taking the foreground back activates us.
         if pid == NSRunningApplication.current.processIdentifier { return }
-        shield.reassert()
-    }
-
-    private func handleSpaceChange() {
-        guard machine.state != .unlocked else { return }
-        FullScreenExiter.exitEveryFullScreenInBackground()
         shield.reassert()
     }
 

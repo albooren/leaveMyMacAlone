@@ -3,9 +3,11 @@ import LocalAuthentication
 import SwiftUI
 import LeaveMyMacAloneCore
 
-// Borderless windows return false from canBecomeKey by default, which drops
+// The shield. A panel, because (measured on macOS 27) a non-activating panel is the only
+// window a .regular app can show on another app's full-screen Space, and the kiosk needs
+// .regular. Borderless windows return false from canBecomeKey by default, which drops
 // keyboard input. Override so the shield can become key.
-final class KeyableWindow: NSWindow {
+final class KeyableWindow: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
@@ -15,8 +17,25 @@ final class KeyableWindow: NSWindow {
     // controls are consumed by them and never reach this handler.
     var onInteract: (() -> Void)?
 
+    /// A context menu draws above the shield and offers Paste, which could submit the
+    /// owner's clipboard as the password.
+    static func opensContextMenu(type: NSEvent.EventType, modifiers: NSEvent.ModifierFlags) -> Bool {
+        switch type {
+        case .rightMouseDown: return true
+        case .leftMouseDown: return modifiers.contains(.control)
+        default: return false
+        }
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        if Self.opensContextMenu(type: event.type, modifiers: event.modifierFlags) {
+            onInteract?()
+            return
+        }
+        super.sendEvent(event)
+    }
+
     override func mouseDown(with event: NSEvent) { onInteract?() }
-    override func rightMouseDown(with event: NSEvent) { onInteract?() }
     override func otherMouseDown(with event: NSEvent) { onInteract?() }
 }
 
@@ -251,6 +270,8 @@ final class ShieldController {
     // Guards rebuilds so a queued screen-parameter notification that lands after
     // hide() cannot resurrect a ghost shield over the unlocked desktop.
     private var isShown = false
+    // Takes key status for an instant in reclaimKeyboard(). Created on first use.
+    private var keyboardRelay: KeyableWindow?
     // Pending exit fade and teardown; cancelled if a new lock arrives mid-animation.
     private var fadeWork: DispatchWorkItem?
     private var dismissWork: DispatchWorkItem?
@@ -323,7 +344,7 @@ final class ShieldController {
     }
 
     /// Re-raise existing shields and re-take activation without rebuilding.
-    /// Used after sleep/wake, a Space change, or another app taking the foreground.
+    /// Used after sleep/wake or another app taking the foreground.
     func reassert() {
         guard isShown else { return }
         rebuildWindows()
@@ -364,17 +385,34 @@ final class ShieldController {
         window.makeKeyAndOrderFront(nil)
     }
 
-    /// Take the keyboard back from another process's non-activating panel with a click
-    /// at the cursor. Measured on macOS 27: making our window key again, re-activating
-    /// and re-ordering it all leave the keyboard with the panel; only a click moves it.
-    /// A shield covers every display at the top level, so the click can only land on us.
+    /// Take the keyboard back from another process's non-activating panel. AppKit still
+    /// considers our window key, so making it key again does nothing. Making another
+    /// non-activating panel of ours key does reach the window server, the same way the
+    /// other panel took the keyboard, and the shield can then take it from that one.
     func reclaimKeyboard() {
-        guard isShown, model.auth != nil, let cursor = CGEvent(source: nil)?.location else { return }
-        let source = CGEventSource(stateID: .hidSystemState)
-        for type in [CGEventType.leftMouseDown, .leftMouseUp] {
-            CGEvent(mouseEventSource: source, mouseType: type,
-                    mouseCursorPosition: cursor, mouseButton: .left)?.post(tap: .cghidEventTap)
-        }
+        guard isShown, let auth = model.auth, !auth.isVerifying,
+              let window = windowsByDisplay[auth.displayID] else { return }
+        let relay = keyboardRelay ?? makeKeyboardRelay()
+        keyboardRelay = relay
+        relay.setFrameOrigin(window.frame.origin)
+        relay.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
+        relay.orderOut(nil)
+    }
+
+    private func makeKeyboardRelay() -> KeyableWindow {
+        let relay = KeyableWindow(contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
+                                  styleMask: [.borderless, .nonactivatingPanel],
+                                  backing: .buffered, defer: false)
+        relay.level = NSWindow.Level(rawValue: shieldLevel)
+        relay.backgroundColor = .clear
+        relay.isOpaque = false
+        relay.ignoresMouseEvents = true
+        relay.isReleasedWhenClosed = false
+        relay.hidesOnDeactivate = false
+        relay.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications,
+                                    .stationary, .fullScreenAuxiliary]
+        return relay
     }
 
     /// Touch ID / Watch gave up (too many tries, lockout): only the password is left.
@@ -480,7 +518,7 @@ final class ShieldController {
     private func makeWindow(displayID: CGDirectDisplayID, screen: NSScreen) -> KeyableWindow {
         let window = KeyableWindow(
             contentRect: screen.frame,
-            styleMask: .borderless,
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false,
             screen: screen
@@ -490,7 +528,9 @@ final class ShieldController {
         window.hasShadow = false
         window.ignoresMouseEvents = false
         window.isReleasedWhenClosed = false
-        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
+        window.hidesOnDeactivate = false
+        window.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications,
+                                     .stationary, .fullScreenAuxiliary]
 
         let host = FirstMouseHostingView(
             rootView: OverlayView(model: model,

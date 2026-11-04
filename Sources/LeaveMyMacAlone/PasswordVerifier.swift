@@ -57,18 +57,33 @@ struct OpenDirectoryPasswordVerifier: PasswordVerifying {
 /// Compiled out of release builds, so a shipped app can never honour it.
 private struct FixedPasswordVerifier: PasswordVerifying {
     let expected: String
+    let delay: Double
 
     func verify(_ password: String) async -> PasswordCheck {
-        password == expected ? .accepted : .rejected
+        try? await Task.sleep(for: .seconds(delay))
+        if password == "x" { return .unavailable }
+        return password == expected ? .accepted : .rejected
     }
 }
 #endif
 
 func makePasswordVerifier() -> any PasswordVerifying {
     #if DEBUG
-    if let expected = ProcessInfo.processInfo.environment["LMMA_TEST_PASSWORD"], !expected.isEmpty {
-        return FixedPasswordVerifier(expected: expected)
+    let environment = ProcessInfo.processInfo.environment
+    if let expected = environment["LMMA_TEST_PASSWORD"], !expected.isEmpty {
+        let delay = environment["LMMA_TEST_VERIFY_DELAY"].flatMap(Double.init) ?? 0
+        return FixedPasswordVerifier(expected: expected, delay: delay)
     }
     #endif
     return OpenDirectoryPasswordVerifier()
+}
+
+/// How long the auth panel stays open unattended.
+func makeAuthTimeout() -> Duration {
+    #if DEBUG
+    if let seconds = ProcessInfo.processInfo.environment["LMMA_TEST_AUTH_TIMEOUT"].flatMap(Double.init) {
+        return .seconds(seconds)
+    }
+    #endif
+    return .seconds(60)
 }
