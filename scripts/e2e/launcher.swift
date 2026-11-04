@@ -1,6 +1,10 @@
 // Helper: behaves like Raycast/Alfred. A global hot key (Ctrl+Opt+Cmd+K) toggles a non-activating
 // panel with a text field, so it can take keystrokes without becoming the active app.
 // That is the shape a launcher has, and a launcher can run shell commands.
+//
+// Reports whether it holds the keyboard and what reached it through the file in
+// LMMA_LAUNCHER_STATE, and with LMMA_LAUNCHER_NO_AX=1 hides from the accessibility API,
+// as apps with poor support do (some Electron, Qt or custom panels).
 import AppKit
 import Carbon.HIToolbox
 
@@ -10,7 +14,16 @@ final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-let app = NSApplication.shared
+final class NoAccessibilityApplication: NSApplication {
+    override func accessibilityAttributeValue(_ attribute: NSAccessibility.Attribute) -> Any? {
+        attribute == .focusedUIElement || attribute == .focusedWindow ? nil : super.accessibilityAttributeValue(attribute)
+    }
+
+    override var accessibilityFocusedUIElement: Any? { nil }
+}
+
+let environment = ProcessInfo.processInfo.environment
+let app = environment["LMMA_LAUNCHER_NO_AX"] == "1" ? NoAccessibilityApplication.shared : NSApplication.shared
 app.setActivationPolicy(.accessory)
 
 let panel = KeyPanel(contentRect: NSRect(x: 300, y: 300, width: 300, height: 40),
@@ -29,6 +42,13 @@ func toggle() {
         field.stringValue = ""
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(field)
+    }
+}
+
+if let statePath = environment["LMMA_LAUNCHER_STATE"] {
+    Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+        let state = "key=\(panel.isKeyWindow ? 1 : 0)\ntyped=\(field.currentEditor()?.string ?? field.stringValue)\n"
+        try? state.write(toFile: statePath, atomically: true, encoding: .utf8)
     }
 }
 

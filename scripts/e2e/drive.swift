@@ -167,9 +167,12 @@ _ = NSApplication.shared
 
 let proc = Process()
 proc.executableURL = URL(fileURLWithPath: args[1] + "/Contents/MacOS/LeaveMyMacAlone")
-if args.count > 3 {
-    proc.environment = ProcessInfo.processInfo.environment.merging(["LMMA_TEST_PASSWORD": args[3]]) { $1 }
+var testEnvironment: [String: String] = args.count > 3 ? ["LMMA_TEST_PASSWORD": args[3]] : [:]
+if scenario == "slow-check-near-timeout" {
+    testEnvironment["LMMA_TEST_AUTH_TIMEOUT"] = "3"
+    testEnvironment["LMMA_TEST_VERIFY_DELAY"] = "3"
 }
+proc.environment = ProcessInfo.processInfo.environment.merging(testEnvironment) { $1 }
 try proc.run()
 let pid = proc.processIdentifier
 let deadman = Process()
@@ -236,6 +239,35 @@ func openPanel() {
     spin(0.3)
 }
 
+func secureField() -> AXUIElement? {
+    var found: AXUIElement?
+    for win in windows(of: axApp(pid)) {
+        _ = walk(win) { el in
+            guard (attr(el, "AXSubrole") as? String) == "AXSecureTextField" else { return false }
+            found = el
+            return true
+        }
+    }
+    return found
+}
+
+func axCenter(_ el: AXUIElement) -> CGPoint {
+    var origin = CGPoint.zero, size = CGSize.zero
+    if let v = attr(el, "AXPosition") { AXValueGetValue(v as! AXValue, .cgPoint, &origin) }
+    if let v = attr(el, "AXSize") { AXValueGetValue(v as! AXValue, .cgSize, &size) }
+    return CGPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
+}
+
+func mouseClick(at point: CGPoint, down: CGEventType, up: CGEventType,
+                button: CGMouseButton, flags: CGEventFlags = []) {
+    for type in [down, up] {
+        let e = CGEvent(mouseEventSource: src, mouseType: type, mouseCursorPosition: point, mouseButton: button)
+        e?.flags = flags
+        e?.post(tap: .cghidEventTap)
+        usleep(40_000)
+    }
+}
+
 func panelRejected() -> Bool {
     allText(of: axApp(pid)).contains { $0.contains("Parola yanlış") || $0.contains("Incorrect password") }
 }
@@ -260,21 +292,34 @@ func sendQuit() -> Bool {
 
 spin(1.0)
 
-if scenario == "fullscreen-space" {
+let fullScreenStatePath = (args[1] as NSString).deletingLastPathComponent + "/../fullscreen-state"
+
+func helperIsFullScreen() -> Bool {
+    ((try? String(contentsOfFile: fullScreenStatePath, encoding: .utf8)) ?? "") == "1"
+}
+
+func helperOnScreen(_ hpid: pid_t) -> Bool {
+    windowList().contains { ownerPID($0) == hpid && layer($0) == 0 }
+}
+
+func startFullScreenHelper() throws -> Process {
+    try? FileManager.default.removeItem(atPath: fullScreenStatePath)
     let p = Process()
     p.executableURL = URL(fileURLWithPath: (args[1] as NSString).deletingLastPathComponent + "/../fsapp")
+    p.environment = ProcessInfo.processInfo.environment.merging(["LMMA_FSAPP_STATE": fullScreenStatePath]) { $1 }
     try p.run()
-    helper = p
-    let hpid = p.processIdentifier
-    guard waitUntil(8, { helperFullScreen(hpid) == true }) else {
-        log("SKIP helper never entered full screen; run this scenario again")
-        finish()
-    }
-    spin(1.0)
-    // The owner goes back to working elsewhere, leaving that Space behind.
-    openApp("Finder")
-    spin(1.5)
+    return p
 }
+
+if scenario == "lock-over-fullscreen" {
+    helper = try startFullScreenHelper()
+    guard waitUntil(8, { helperIsFullScreen() }) else {
+        check(false, "the full-screen helper never entered full screen, so nothing was tested")
+        finish(1)
+    }
+    spin(1.2)
+}
+
 /// The launcher helper's text field, once its panel is open.
 func launcherField(_ hpid: pid_t) -> AXUIElement? {
     var hit: AXUIElement?
@@ -310,9 +355,25 @@ func keyboardFocusPID() -> pid_t? {
     return AXUIElementGetPid(focused as! AXUIElement, &focusPID) == .success ? focusPID : nil
 }
 
-if scenario == "launcher-during-auth" || scenario == "unlock-and-quit" {
+let launcherStatePath = (args[1] as NSString).deletingLastPathComponent + "/../launcher-state"
+
+/// What the launcher helper reports about itself, without using accessibility.
+func launcherState() -> (hasKeyboard: Bool, typed: String) {
+    let lines = ((try? String(contentsOfFile: launcherStatePath, encoding: .utf8)) ?? "")
+        .split(separator: "\n", omittingEmptySubsequences: false)
+    let typed = lines.first { $0.hasPrefix("typed=") }.map { String($0.dropFirst(6)) } ?? ""
+    return (lines.contains("key=1"), typed)
+}
+
+let launcherScenarios: Set<String> = ["launcher-during-auth", "unlock-and-quit", "focus-reclaim-spares-controls",
+                                      "launcher-without-accessibility"]
+if launcherScenarios.contains(scenario) {
     let p = Process()
     p.executableURL = URL(fileURLWithPath: (args[1] as NSString).deletingLastPathComponent + "/../launcher")
+    var launcherEnvironment = ProcessInfo.processInfo.environment
+    launcherEnvironment["LMMA_LAUNCHER_STATE"] = launcherStatePath
+    if scenario == "launcher-without-accessibility" { launcherEnvironment["LMMA_LAUNCHER_NO_AX"] = "1" }
+    p.environment = launcherEnvironment
     try p.run()
     helper = p
     let hpid = p.processIdentifier
@@ -331,6 +392,19 @@ if scenario == "launcher-during-auth", let hpid = helper?.processIdentifier {
     check(reached, "control: typing reaches the launcher when nothing is locked")
     guard reached else { finish(1) }
     pressLauncherHotKey()
+    spin(0.4)
+}
+if scenario == "launcher-without-accessibility", let hpid = helper?.processIdentifier {
+    // Control, before any lock. Accessibility can't see this helper, so it reports for itself.
+    kill(hpid, SIGUSR1)
+    let keyed = waitUntil(2) { launcherState().hasKeyboard }
+    check(keyed, "control: the launcher takes the keyboard")
+    guard keyed else { finish(1) }
+    tap(0x0C) // "q", sent only now that the helper says it has the keyboard
+    let reached = waitUntil(1) { launcherState().typed == "q" }
+    check(reached, "control: typing reaches the launcher when nothing is locked")
+    guard reached else { finish(1) }
+    kill(hpid, SIGUSR1)
     spin(0.4)
 }
 if scenario == "lock-with-other-app-in-front" {
@@ -355,11 +429,28 @@ case "lock-with-other-app-in-front":
     check(frontmostID() == bundleID, "lock takes the foreground from another app")
     check(kioskInForce(), "kiosk options in force")
 
-case "fullscreen-space":
+case "lock-over-fullscreen":
+    // The shield has to appear on another app's full-screen Space, with that app left alone.
     guard let hpid = helper?.processIdentifier else { finish(1) }
-    let left = waitUntil(4) { helperFullScreen(hpid) == false }
-    check(left, "a full-screen app in another Space leaves full screen on lock")
-    check(everyDisplayCovered(pid), "shield still covers every display")
+    spin(1.5)
+    check(helperIsFullScreen(), "the full-screen app stays in full screen")
+    check(helperOnScreen(hpid), "control: its Space really is the one on screen")
+    check(everyDisplayCovered(pid), "the shield covers it")
+    check(frontmostID() == bundleID && kioskInForce(), "frontmost with the kiosk in force")
+    openPanel()
+    check(frontmostID() == bundleID && kioskInForce(), "the password field works over it")
+
+case "fullscreen-while-locked":
+    // An app can enter full screen by itself during a lock (a video, a scheduled task).
+    let p = try startFullScreenHelper()
+    helper = p
+    let entered = waitUntil(8) { helperIsFullScreen() }
+    check(entered, "control: the helper entered full screen during the lock")
+    spin(1.5)
+    check(helperIsFullScreen(), "it stays in full screen")
+    check(helperOnScreen(p.processIdentifier), "control: its Space really is the one on screen")
+    check(everyDisplayCovered(pid), "the shield covers it")
+    check(frontmostID() == bundleID && kioskInForce(), "the lock keeps the foreground")
 
 case "password-stage":
     openPanel()
@@ -382,13 +473,90 @@ case "launcher-during-auth":
     // Layer 2: a launcher can also open from a mouse button or a gesture.
     kill(hpid, SIGUSR1)
     check(waitUntil(1.5) { launcherField(hpid) != nil }, "the launcher panel opened without a hot key")
-    check(waitUntil(1.5) { keyboardFocusPID() == pid }, "layer 2: the keyboard comes back from the launcher")
+    // The launcher reports for itself: an instant reading of "focus is ours" could come
+    // from before it took the keyboard.
+    let tookKeyboard = waitUntil(1) { launcherState().hasKeyboard }
+    let started = Date()
+    let lostKeyboard = waitUntil(2) { !launcherState().hasKeyboard }
+    log("launcher took the keyboard: \(tookKeyboard); held it for about \(Int(Date().timeIntervalSince(started) * 1000)) ms")
+    check(lostKeyboard, "layer 2: the launcher loses the keyboard again")
+    check(waitUntil(1) { keyboardFocusPID() == pid }, "layer 2: the keyboard is back with the lock")
     // Harmless letters: they can only land in the launcher or the password field.
     guard alive(), !shieldBounds(pid).isEmpty else { check(false, "lock gone before typing"); finish(1) }
     tap(0x06); tap(0x06) // "zz"
     spin(0.5)
     check(launcherText(hpid).isEmpty, "typing does not reach the launcher (it got \"\(launcherText(hpid))\")")
     check(waitUntil(2) { secureInputHeld() && frontmostID() == bundleID }, "password field has focus again")
+
+case "no-context-menu":
+    // A menu above the shield offers Paste, which could submit the owner's clipboard.
+    openPanel()
+    guard let field = secureField() else { check(false, "no password field"); finish(1) }
+    let center = axCenter(field)
+    func menuOpen() -> Bool { !windowList().filter { ownerPID($0) == pid && layer($0) > fullShieldLevel }.isEmpty }
+    func clearMenu() { if menuOpen() { tap(0x35); spin(0.3) } }
+    mouseClick(at: center, down: .rightMouseDown, up: .rightMouseUp, button: .right)
+    spin(0.6)
+    check(!menuOpen(), "right-click on the password field opens no menu")
+    clearMenu()
+    mouseClick(at: center, down: .leftMouseDown, up: .leftMouseUp, button: .left, flags: .maskControl)
+    spin(0.6)
+    check(!menuOpen(), "Control-click on the password field opens no menu")
+    clearMenu()
+    key(0x3B, true, .maskControl); key(0x24, true, .maskControl); key(0x24, false, .maskControl); key(0x3B, false)
+    spin(0.6)
+    check(!menuOpen(), "the context-menu shortcut opens no menu")
+    clearMenu()
+    check(waitUntil(1) { secureInputHeld() && unlockButton() == nil }, "the panel is still open with its field focused")
+
+case "focus-reclaim-spares-controls":
+    // Taking the keyboard back must not press whatever the cursor happens to be on.
+    guard let hpid = helper?.processIdentifier else { finish(1) }
+    openPanel()
+    guard let cancel = findButton(in: axApp(pid), { $0.contains("Vazgeç") || $0 == "Cancel" }) else {
+        check(false, "no cancel button"); finish(1)
+    }
+    CGEvent(mouseEventSource: src, mouseType: .mouseMoved, mouseCursorPosition: axCenter(cancel), mouseButton: .left)?
+        .post(tap: .cghidEventTap)
+    spin(0.3)
+    kill(hpid, SIGUSR1)
+    check(waitUntil(1.5) { launcherField(hpid) != nil }, "the launcher panel opened")
+    check(waitUntil(1.5) { keyboardFocusPID() == pid }, "the keyboard comes back with the cursor on Cancel")
+    spin(0.5)
+    check(unlockButton() == nil && secureInputHeld(), "the panel stays open: nothing was pressed")
+
+case "launcher-without-accessibility":
+    // A launcher that hides from the accessibility API must not get the keyboard either.
+    guard let hpid = helper?.processIdentifier else { finish(1) }
+    openPanel()
+    kill(hpid, SIGUSR1)
+    check(waitUntil(1.5) { windowList().contains { ownerPID($0) == hpid && layer($0) >= 0 } }, "the launcher panel opened")
+    spin(0.6)
+    guard alive(), !shieldBounds(pid).isEmpty else { check(false, "lock gone before typing"); finish(1) }
+    log("launcher says it has the keyboard: \(launcherState().hasKeyboard)")
+    tap(0x06); tap(0x06) // "zz": can only land in the launcher or the password field
+    spin(0.5)
+    check(launcherState().typed.isEmpty, "typing does not reach it (it got \"\(launcherState().typed)\")")
+
+case "slow-check-near-timeout":
+    // A correct password submitted just before the panel's timeout must still unlock.
+    openPanel()
+    spin(1.5)
+    requireLocked("typing")
+    tap(0x00); tap(0x0B); tap(0x08) // "abc"
+    tap(0x24)
+    check(waitUntil(6) { shieldBounds(pid).isEmpty }, "the check finishing after the old timeout still unlocks")
+
+case "directory-unavailable":
+    // A check that can't run says nothing about the password, and must say how to get out.
+    openPanel()
+    requireLocked("typing")
+    tap(0x07) // "x" makes the debug verifier report the directory as unavailable
+    tap(0x24)
+    check(waitUntil(3) { allText(of: axApp(pid)).contains { $0.contains("doğrulanamadı") || $0.contains("can't be checked") } },
+          "it says the password can't be checked, not that it is wrong")
+    check(!panelRejected(), "it doesn't claim the password is wrong")
+    check(everyDisplayCovered(pid), "still locked")
 
 case "reclaim-foreground":
     openApp("Finder")

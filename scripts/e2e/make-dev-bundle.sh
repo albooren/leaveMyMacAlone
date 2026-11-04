@@ -31,7 +31,7 @@ ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 for lproj in "$ROOT/Resources"/*.lproj; do cp -R "$lproj" "$APP/Contents/Resources/"; done
 
 if [ "${LMMA_E2E_RELEASE:-0}" = "1" ]; then
-    if grep -aq "LMMA_TEST_PASSWORD" "$BIN"; then
+    if grep -aq "LMMA_TEST_" "$BIN"; then
         echo "error: the debug test hook is present in the RELEASE binary" >&2
         exit 1
     fi

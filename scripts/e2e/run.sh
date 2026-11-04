@@ -37,11 +37,11 @@ sleep 1
 
 SCENARIOS=("$@")
 if [ ${#SCENARIOS[@]} -eq 0 ]; then
-    SCENARIOS=(quit-while-locked lock-with-other-app-in-front fullscreen-space password-stage
-               launcher-during-auth reclaim-foreground wrong-password cancel-and-keyboard-route
-               every-display-covered sigterm-rescue)
-    # The fixed test password only exists in debug builds.
-    [ "$RELEASE" = "1" ] || SCENARIOS+=(unlock-and-quit)
+    SCENARIOS=(quit-while-locked lock-with-other-app-in-front lock-over-fullscreen fullscreen-while-locked password-stage
+               no-context-menu launcher-during-auth focus-reclaim-spares-controls launcher-without-accessibility
+               reclaim-foreground wrong-password cancel-and-keyboard-route every-display-covered sigterm-rescue)
+    # The fixed test password and timing hooks only exist in debug builds.
+    [ "$RELEASE" = "1" ] || SCENARIOS+=(unlock-and-quit slow-check-near-timeout directory-unavailable)
 fi
 
 LOG="$WORK/results.log"
@@ -49,8 +49,16 @@ LOG="$WORK/results.log"
 for s in "${SCENARIOS[@]}"; do
     echo "===================== $s ====================="
     TEST_PASSWORD=""
-    [ "$s" = "unlock-and-quit" ] && TEST_PASSWORD="abc"
-    "$WORK/drive" "$APP" "$s" $TEST_PASSWORD 2>&1 | grep -v sandbox_extension | tee -a "$LOG"
+    case "$s" in unlock-and-quit|slow-check-near-timeout|directory-unavailable) TEST_PASSWORD="abc" ;; esac
+    "$WORK/drive" "$APP" "$s" $TEST_PASSWORD 2>&1 | grep -v sandbox_extension | tee "$WORK/scenario.log"
+    STATUS="${PIPESTATUS[0]}"
+    cat "$WORK/scenario.log" >> "$LOG"
+    # Counting PASS lines alone would let a crash or a scenario that never ran look fine.
+    if [ "$STATUS" -ne 0 ] && ! grep -q '^FAIL' "$WORK/scenario.log"; then
+        echo "FAIL $s: the driver exited with status $STATUS" | tee -a "$LOG"
+    elif ! grep -qE '^(PASS|FAIL)' "$WORK/scenario.log"; then
+        echo "FAIL $s: reported no result" | tee -a "$LOG"
+    fi
     sleep 1
 done
 
