@@ -1,5 +1,6 @@
 import AppKit
 import LeaveMyMacAloneCore
+import LocalAuthentication
 
 /// Owns every subsystem and coordinates lock → authenticate → unlock.
 @MainActor
@@ -10,6 +11,9 @@ final class AppController {
     private let inputBlocker = InputBlocker()
     private let kiosk = KioskMode()
     private let authenticator = Authenticator()
+    private let focusGuard = KeyboardFocusGuard()
+    private let passwordVerifier: any PasswordVerifying
+    private var passwordAttempts = PasswordAttemptPolicy()
     private var machine = LockStateMachine()
     private let intruder = IntruderCapture(photographer: AVFoundationPhotographer())
 
@@ -17,31 +21,30 @@ final class AppController {
     private var updates: UpdateController?
     private var hotKey: GlobalHotKey?
 
-    // Auth lifecycle guards. `authEpoch` is bumped whenever an authentication
-    // attempt is started, superseded (re-present), or aborted (panic/watchdog);
-    // a completing attempt only acts on its result if its captured epoch still
-    // matches, so a stale/cancelled LAContext callback can never drive state.
+    // Auth lifecycle guards. `authEpoch` is bumped whenever the auth panel opens,
+    // closes or the lock ends; a completing attempt only acts on its result if its
+    // captured epoch still matches, so a stale/cancelled LAContext callback or
+    // password check can never drive state.
     private var authEpoch = 0
     private var authTask: Task<Void, Never>?
     private var watchdogTask: Task<Void, Never>?
-    // Upper bound on how long the app may sit in `.authenticating`. If the auth
-    // UI is dismissed/lost/hung without a result (e.g. the user escaped the
-    // sheet), this fail-safes back to a clean locked state instead of stranding.
-    private let authTimeout: Duration = .seconds(60)
+    // Upper bound on how long the auth panel stays open unattended. Counted from the
+    // panel opening or the last password submitted; on expiry the panel closes (which
+    // clears anything typed) and the Mac is simply locked again.
+    private let authTimeout: Duration
     // Retain power-notification tokens for the app's lifetime.
     private var powerObservers: [NSObjectProtocol] = []
     // Drives the step-by-step first-run permission onboarding.
     private var onboardingTask: Task<Void, Never>?
 
-    // Throttle the activation-recovery re-present (see reclaimForeground). The
-    // LocalAuthentication agent is excluded by two guards, so this never fires in
-    // normal use — it is a backstop so that if a foreground app (or a future
-    // macOS that hosts the auth UI in an unrecognised .regular process) fights
-    // for focus, we degrade to a clean locked state instead of looping forever.
-    private var lastReclaimAt: Date?
-    private var reclaimBurst = 0
-    private let reclaimMinInterval: TimeInterval = 0.5
-    private let reclaimBurstLimit = 3
+    init(passwordVerifier: any PasswordVerifying = makePasswordVerifier(),
+         authTimeout: Duration = makeAuthTimeout()) {
+        self.passwordVerifier = passwordVerifier
+        self.authTimeout = authTimeout
+    }
+
+    /// Whether the app may quit right now. See AppDelegate.applicationShouldTerminate.
+    var allowsTermination: Bool { machine.allowsTermination }
 
     func start() {
         NSApp.setActivationPolicy(.accessory)
@@ -61,11 +64,8 @@ final class AppController {
         }
         menuBar = menu
 
-        // ⌃⌥⌘L registers with the WindowServer and is intentionally NOT consumed
-        // by the event tap, so it stays live from ANY state as a panic
-        // affordance: lock when unlocked, and abort-back-to-locked when stuck in
-        // authentication (the single keyboard recovery path while the auth UI is
-        // unreachable). See handleHotKey.
+        // ⌃⌥⌘L locks the Mac. The kiosk turns global hot keys off while locked, so
+        // during a lock it only fires if we have lost the foreground. See handleHotKey.
         hotKey = GlobalHotKey(onPressed: { [weak self] in
             guard let self else { return }
             Task { @MainActor in self.handleHotKey() }
@@ -118,10 +118,6 @@ final class AppController {
     /// The actual locking sequence (Accessibility already granted).
     private func engageLock() {
         guard machine.lock() else { return } // ignore if not unlocked
-        // If the user is inside another app's native full-screen Space, our shield
-        // (a third-party window) cannot cover it — pull that app out of full-screen
-        // so the lock lands on a Desktop Space the shield covers. No-op otherwise.
-        FullScreenExiter.exitFrontmostFullScreen()
         intruder.beginSession(enabled: store.captureIntruderPhoto)
         // Stop audio/video so nothing keeps playing (or leaking sound) at an
         // unattended desk — unless the owner chose to keep their music going.
@@ -136,8 +132,7 @@ final class AppController {
         }
         // onUnlock = the "Kilidi Aç" button → begin auth. onInteract = a click
         // anywhere else on the shield → flash "still locked" while locked, or
-        // re-present a buried auth sheet while authenticating (tap-independent
-        // recovery, so a covering window can never strand the user).
+        // return focus to the password field while authenticating.
         shield.show(opacity: store.overlayOpacity, away: store.awayStatus(),
                    floating: store.floatingIcon(),
                    floatingSize: store.floatingSize, onInteract: { [weak self] in
@@ -169,18 +164,15 @@ final class AppController {
         }
     }
 
-    // ⌃⌥⌘L from any state. The hot key is never consumed by the tap, so it is
-    // the guaranteed keyboard escape hatch.
     private func handleHotKey() {
         switch machine.state {
         case .unlocked:
             lock()
         case .authenticating:
-            // Auth UI may be unreachable (e.g. after a Cmd+Tab escape). Abort
-            // it and return to a clean, fully-armed locked state.
+            // Close the auth panel and return to a clean, fully-armed locked state.
             panicRelock()
         case .locked:
-            break // already locked; first interaction starts auth
+            break // already locked
         }
     }
 
@@ -191,25 +183,22 @@ final class AppController {
             noteIntruderInteraction()
             requestUnlock()
         case .authenticating:
-            // The in-flight auth sheet was lost / buried; bring a fresh one to
-            // the front instead of stranding.
-            startAuth()
+            shield.focusAuth()
         case .unlocked:
             break
         }
     }
 
-    // A click on the shield OUTSIDE the unlock button. While locked this only
-    // flashes the lock badge so the user learns the button is the way out (it
-    // does NOT begin auth). While authenticating it re-presents a buried auth
-    // sheet (tap-independent recovery).
+    // A click on the shield OUTSIDE the controls. While locked this only flashes the
+    // lock badge so the user learns the button is the way out (it does NOT begin
+    // auth). While authenticating it returns focus to the password field.
     private func handleBackgroundClick() {
         switch machine.state {
         case .locked:
             noteIntruderInteraction()
             shield.flashLocked()
         case .authenticating:
-            startAuth()
+            shield.focusAuth()
         case .unlocked:
             break
         }
@@ -224,86 +213,131 @@ final class AppController {
         }
     }
 
+    /// Open the auth panel inside the shield. Nothing here hands the foreground to
+    /// another process, so the kiosk stays in force for the whole authentication.
     private func requestUnlock() {
         guard machine.beginAuth() else { return }
-        // Keep the tap live but in auth mode: it stops consuming plain input
-        // (so the password sheet is usable) while still swallowing app/space
-        // switching and launcher shortcuts that would let a passer-by escape.
+        // Keep the tap live but in auth mode: it stops consuming plain input (so the
+        // password field is usable) while still swallowing app/space switching and
+        // launcher shortcuts that would let a passer-by escape.
         inputBlocker.beginAuthMode()
-        // Drop the shield below the auth dialog so the password / Touch ID
-        // screen appears on top of the dimmed overlay, not buried behind it.
-        shield.lowerBelowAuthDialog()
-        startAuth()
-    }
-
-    /// Present (or re-present) the auth UI. Each call supersedes any in-flight
-    /// attempt via a fresh epoch, so only the newest sheet's result is honored.
-    private func startAuth() {
         authEpoch &+= 1
         let epoch = authEpoch
-        authenticator.cancel()      // abort any prior in-flight evaluation
-        authTask?.cancel()
-        NSApp.activate()            // re-take focus so the sheet is reachable
         startWatchdog(epoch: epoch)
+        let biometricContext = authenticator.makeBiometricContext()
+        shield.presentAuth(
+            biometricContext: biometricContext,
+            actions: AuthPanelActions(
+                biometricViewReady: { [weak self] in
+                    guard let self, let biometricContext else { return }
+                    self.startBiometrics(biometricContext, epoch: epoch)
+                },
+                submitPassword: { [weak self] password in
+                    self?.submitPassword(password, epoch: epoch)
+                },
+                cancel: { [weak self] in
+                    self?.panicRelock()
+                }))
+        focusGuard.start { [weak self] in
+            self?.shield.reclaimKeyboard()
+        }
+    }
+
+    /// Wait for a finger or a Watch. Only success ends the lock: if it gives up (too
+    /// many tries, lockout), the panel stays open and the password still works.
+    private func startBiometrics(_ context: LAContext, epoch: Int) {
+        guard epoch == authEpoch else { return }
         authTask = Task { @MainActor in
-            let ok = await authenticator.authenticate(
+            let ok = await authenticator.evaluate(
+                context,
                 reason: NSLocalizedString("Mac'in kilidini açmak için kimliğini doğrula",
-                                          comment: "Touch ID / password prompt reason"))
+                                          comment: "Touch ID prompt reason"))
             guard epoch == self.authEpoch else { return } // superseded → ignore
-            self.finishAuth(success: ok)
+            if ok {
+                self.finishUnlock()
+            } else {
+                self.shield.biometricsEnded()
+            }
         }
     }
 
-    private func finishAuth(success: Bool) {
+    private func submitPassword(_ password: String, epoch: Int) {
+        guard epoch == authEpoch, machine.state == .authenticating, !password.isEmpty else { return }
+        let wait = passwordAttempts.retryDelay(now: ProcessInfo.processInfo.systemUptime)
+        guard wait <= 0 else {
+            startWatchdog(epoch: epoch)
+            shield.rejectPassword(.retryLater(seconds: Int(wait.rounded(.up))))
+            return
+        }
+        // A check in flight must not be cut off by the timeout, or a correct password
+        // would be thrown away. If it ever hangs, the panel's cancel button still works.
         cancelWatchdog()
-        if success {
-            _ = machine.authSucceeded()
-            inputBlocker.stop()
-            kiosk.disengage()
-            shield.hide(success: true)   // play the unlock flourish, then tear down
-            sleepGuard.end()
-            intruder.postUnlockNotification()
-            intruder.endSession()
-            installHeldUpdateSoon()
-        } else if inputBlocker.endAuthMode() {
-            _ = machine.authFailed()          // re-armed; stay locked
-            shield.raiseToFullShield()        // back to full cover (no auth dialog)
-        } else {
-            // Tap could not be re-armed — fail safe rather than strand behind a
-            // non-consuming lock.
-            failSafeToUnlocked()
+        shield.setAuthVerifying(true)
+        Task { @MainActor in
+            let result = await passwordVerifier.verify(password)
+            guard epoch == self.authEpoch else { return } // superseded → ignore
+            self.shield.setAuthVerifying(false)
+            switch result {
+            case .accepted:
+                self.finishUnlock()
+            case .rejected:
+                self.noteRejectedPassword(epoch: epoch)
+            case .unavailable:
+                // Says nothing about the password, so it costs no attempt.
+                self.startWatchdog(epoch: epoch)
+                self.shield.rejectPassword(.cannotVerify)
+            }
         }
     }
 
-    /// Abort an in-flight authentication and return to a clean locked state.
-    /// Invoked by ⌃⌥⌘L during auth and by the auth watchdog.
+    private func noteRejectedPassword(epoch: Int) {
+        let now = ProcessInfo.processInfo.systemUptime
+        passwordAttempts.noteFailure(now: now)
+        noteIntruderInteraction()
+        startWatchdog(epoch: epoch)
+        let wait = passwordAttempts.retryDelay(now: now)
+        shield.rejectPassword(wait > 0 ? .retryLater(seconds: Int(wait.rounded(.up))) : .wrongPassword)
+    }
+
+    /// Authentication succeeded: tear the lock down.
+    private func finishUnlock() {
+        focusGuard.stop()
+        cancelWatchdog()
+        authEpoch &+= 1             // nothing still in flight may act on this lock
+        authenticator.cancel()
+        passwordAttempts.reset()
+        _ = machine.authSucceeded()
+        inputBlocker.stop()
+        kiosk.disengage()
+        shield.hide(success: true)   // play the unlock flourish, then tear down
+        sleepGuard.end()
+        intruder.postUnlockNotification()
+        intruder.endSession()
+        installHeldUpdateSoon()
+    }
+
+    /// Close the auth panel and return to a clean locked state. Invoked by the panel's
+    /// cancel button and Escape, ⌃⌥⌘L during auth, the auth watchdog and going to sleep.
     private func panicRelock() {
+        focusGuard.stop()
         authEpoch &+= 1             // supersede the in-flight attempt's result
         cancelWatchdog()
         authenticator.cancel()
         authTask?.cancel()
         guard machine.state == .authenticating else { return }
-        if inputBlocker.endAuthMode() {
-            _ = machine.authFailed()          // authenticating -> locked
-            shield.raiseToFullShield()        // back to full cover (no auth dialog)
-        } else {
-            failSafeToUnlocked()
-        }
+        rearmInputBlocking(afterAuth: true)
+        _ = machine.authFailed()    // authenticating -> locked
+        shield.dismissAuth()
     }
 
-    /// Last-resort teardown to unlocked when input blocking cannot be (re)armed.
-    private func failSafeToUnlocked() {
-        switch machine.state {
-        case .authenticating: _ = machine.authSucceeded() // -> unlocked
-        case .locked: _ = machine.abortLock()             // -> unlocked
-        case .unlocked: break
+    /// A dead tap never ends the lock: unlocking does not depend on it (the shield's
+    /// button and the password field work without it) and the shield and kiosk still
+    /// hold. Failing open here would let anyone who kills the tap walk in.
+    private func rearmInputBlocking(afterAuth: Bool) {
+        let live = afterAuth ? inputBlocker.endAuthMode() : inputBlocker.ensureLive()
+        if !live {
+            NSLog("InputBlocker: tap could not be re-armed; staying locked")
         }
-        inputBlocker.stop()
-        kiosk.disengage()
-        shield.hide()
-        sleepGuard.end()
-        showTapFailureAlert()
-        installHeldUpdateSoon()
     }
 
     /// An update that became ready while locked was held back (installing
@@ -348,97 +382,41 @@ final class AppController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.handleSleep() }
         })
-        // The event tap cannot block Cmd+Tab once the password fallback turns on
-        // Secure Event Input (the tap goes blind to keystrokes) — and our kiosk
-        // presentationOptions only suppress switching while WE are frontmost. So
-        // an app switch during auth can bury the sheet behind another app. Watch
-        // for a real foreground app stealing focus and reclaim it directly,
-        // independent of the tap. This is the tap-proof half of "wherever you go,
-        // you land back on the password screen".
+        // The kiosk only holds while WE are frontmost, so losing the foreground for any
+        // reason (an app calling activate, a background agent) must be undone at once.
+        // No system UI legitimately needs the foreground during a lock any more: auth
+        // happens in our own window.
         powerObservers.append(center.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
         ) { [weak self] note in
-            // Runs on the main queue. Extract Sendable scalars from the
-            // (non-Sendable) NSRunningApplication here so nothing unsafe crosses
-            // into the main-actor hop below.
+            // Runs on the main queue. Extract a Sendable scalar from the (non-Sendable)
+            // NSRunningApplication here so nothing unsafe crosses into the hop below.
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             let pid = app?.processIdentifier ?? -1
-            let isRegular = app?.activationPolicy == .regular
-            let bundleID = app?.bundleIdentifier
             MainActor.assumeIsolated {
-                self?.handleAppActivated(pid: pid, isRegular: isRegular, bundleID: bundleID)
+                self?.handleAppActivated(pid: pid)
             }
         })
     }
 
-    /// A foreground app other than us became active while the Mac is locked or
-    /// authenticating — almost always a Cmd+Tab escape that slipped past the tap.
-    /// Reclaim the foreground (and re-present the sheet in front if mid-auth).
-    private func handleAppActivated(pid: pid_t, isRegular: Bool, bundleID: String?) {
-        guard machine.state == .locked || machine.state == .authenticating else { return }
-        // Ignore ourselves (our own reclaim re-activates us), background/agent
-        // apps, and the system auth agents that legitimately take focus while
-        // evaluating the policy.
+    private func handleAppActivated(pid: pid_t) {
+        guard machine.state != .unlocked else { return }
+        // Ignore ourselves: taking the foreground back activates us.
         if pid == NSRunningApplication.current.processIdentifier { return }
-        if !isRegular { return }
-        if Self.isSystemAuthAgent(bundleID) { return }
-        reclaimForeground()
-    }
-
-    /// True for the background processes that draw the system authentication UI,
-    /// which may briefly take focus and must NOT be treated as an escape.
-    private static func isSystemAuthAgent(_ bundleID: String?) -> Bool {
-        guard let id = bundleID?.lowercased() else { return false }
-        // Only Apple-signed system bundles qualify; never misclassify a
-        // third-party app (which would silently exempt it from recovery).
-        guard id.hasPrefix("com.apple.") else { return false }
-        return id.contains("securityagent") || id.contains("loginwindow")
-            || id.contains("coreauth") || id.contains("authui")
-            || id.contains("localauthentication") || id.contains("biometric")
-    }
-
-    /// Pull our shield back to the front and, if authenticating, present a fresh
-    /// auth sheet on top (superseding the buried one via a new epoch).
-    private func reclaimForeground() {
-        NSApp.activate()
         shield.reassert()
-        guard machine.state == .authenticating else {
-            reclaimBurst = 0
-            return
-        }
-        // Detect a focus-fight: many reclaims in quick succession means something
-        // keeps stealing the foreground faster than a human could. Collapse to a
-        // clean, fully-armed locked state rather than re-presenting forever.
-        let now = Date()
-        if let last = lastReclaimAt, now.timeIntervalSince(last) < reclaimMinInterval {
-            reclaimBurst += 1
-        } else {
-            reclaimBurst = 0
-        }
-        lastReclaimAt = now
-        if reclaimBurst >= reclaimBurstLimit {
-            reclaimBurst = 0
-            lastReclaimAt = nil
-            panicRelock()
-            return
-        }
-        startAuth()
     }
 
     /// A session-level tap and presentation options can lapse across sleep/wake.
-    /// Re-arm and re-assert if still locked; fail safe if input blocking is gone.
+    /// Re-arm and re-assert if still locked.
     private func handleWake() {
         guard machine.state == .locked else { return }
-        if inputBlocker.ensureLive() {
-            kiosk.reassert()
-            shield.reassert()
-        } else {
-            failSafeToUnlocked()
-        }
+        rearmInputBlocking(afterAuth: false)
+        kiosk.reassert()
+        shield.reassert()
     }
 
     /// Don't sleep mid-authentication: collapse to a clean locked state so wake
-    /// resumes with the tap armed rather than stuck behind an unreachable sheet.
+    /// resumes with the tap armed and nothing typed left in the panel.
     private func handleSleep() {
         if machine.state == .authenticating {
             panicRelock()

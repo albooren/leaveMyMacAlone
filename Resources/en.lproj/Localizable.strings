@@ -13,6 +13,14 @@
 "Kilitli" = "Locked";
 "Açılıyor…" = "Unlocking…";
 "Kilidi Aç" = "Unlock";
+"Parola" = "Password";
+"Parolanı gir" = "Enter your password";
+"Touch ID'ye dokun veya parolanı gir" = "Touch the Touch ID sensor or enter your password";
+"Apple Watch'ı onayla veya parolanı gir" = "Confirm on your Apple Watch or enter your password";
+"Parola şu an doğrulanamadı. Touch ID'yi dene; olmazsa güç düğmesini basılı tutup yeniden başlat." = "Your password can't be checked right now. Try Touch ID, or hold the power button to restart.";
+"Parola yanlış" = "Incorrect password";
+"Çok fazla deneme. %lld sn sonra tekrar dene." = "Too many attempts. Try again in %lld s.";
+"Vazgeç" = "Cancel";
 "Önizleme" = "Preview";
 "İzinsiz girişte fotoğraf çek" = "Capture intruder photo";
 "Kilidi açmaya çalışan kişinin ön kameradan fotoğrafını çeker." = "Photographs whoever tries to unlock your Mac.";

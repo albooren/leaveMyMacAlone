@@ -12,6 +12,10 @@ public enum LockState: Equatable {
 public struct LockStateMachine {
     public private(set) var state: LockState
 
+    /// Whether the app may quit. Quitting takes the shield and input block with it,
+    /// so a quit request (Cmd+Tab + Q, an Apple event) must not end a lock.
+    public var allowsTermination: Bool { state == .unlocked }
+
     public init() {
         state = .unlocked
     }
