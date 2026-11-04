@@ -8,7 +8,7 @@ import ApplicationServices
 /// display at the top window level — a click can only ever land on the shield,
 /// never an app behind it). App/Space switching is held off by the kiosk's
 /// presentation options while we are frontmost. During authentication the tap
-/// passes plain typing to the password screen and swallows only escape
+/// passes plain typing to the password field and swallows only escape
 /// shortcuts.
 ///
 /// PERMISSIONS: an ACTIVE (.defaultTap) keyboard tap that can modify/consume
@@ -21,7 +21,7 @@ final class InputBlocker {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     // While true the tap stays live but only swallows escape shortcuts, letting
-    // plain typing through to the auth sheet (see handle / isEscapeShortcut).
+    // plain typing through to the password field (see handle / isEscapeShortcut).
     private var authMode = false
     // Keyboard hooks for the locked state (the keyboard is swallowed regardless):
     // Space/Return begin auth (like the "Kilidi Aç" button); any other key fires
@@ -55,8 +55,8 @@ final class InputBlocker {
         self.onUnlockKey = onUnlockKey
         self.onLockedKey = onLockedKey
         // A fresh lock MUST start in full-block mode. authMode is only cleared
-        // by endAuthMode(), but the success/fail-safe teardowns all call stop()
-        // directly — so without this reset a prior auth cycle would leave
+        // by endAuthMode(), but the unlock teardown calls stop() directly — so
+        // without this reset a prior auth cycle would leave
         // authMode == true and the next lock would pass the keyboard straight
         // through. Re-arm defensively here.
         self.authMode = false
@@ -136,14 +136,25 @@ final class InputBlocker {
         }
 
         // Only keyboard events reach this tap (the mask is keyboard-only). During
-        // authentication the tap stays LIVE so the lock keeps blocking the
-        // escape shortcuts that would otherwise let a passer-by act or strand
-        // the owner, while plain typing reaches the separate-process auth screen
-        // so the password can be entered.
+        // authentication the tap stays LIVE: plain typing reaches the password field
+        // in our own window, escape shortcuts stay blocked, and nothing passes while
+        // we don't hold the keyboard, since it would land elsewhere. A key pressed in
+        // that state pulls us back. Once the secure field has focus the tap goes blind
+        // to keystrokes; from there the kiosk, which holds because we stay frontmost,
+        // keeps app switching, Force Quit and global hot keys off, and
+        // KeyboardFocusGuard takes the keyboard back from anything else that gets it.
         if authMode {
-            return Self.isEscapeShortcut(type: type, event: event)
-                ? nil                                // swallow the escape
-                : Unmanaged.passUnretained(event)    // deliver to the password screen
+            // Installed on the main run loop, so this callback is on the main thread.
+            let holdsKeyboard = MainActor.assumeIsolated { NSApp.isActive && NSApp.keyWindow != nil }
+            let passes = Self.passesInAuthMode(
+                holdsKeyboard: holdsKeyboard,
+                isEscapeShortcut: Self.isEscapeShortcut(type: type, event: event))
+            if passes { return Unmanaged.passUnretained(event) }
+            if !holdsKeyboard, type == .keyDown {
+                let cb = onLockedKey
+                DispatchQueue.main.async { cb?() }
+            }
+            return nil
         }
 
         // Locked: the keyboard is always swallowed (the mouse is untapped, so the
@@ -159,6 +170,11 @@ final class InputBlocker {
         return nil
     }
 
+    /// Whether a key event reaches the password field during authentication.
+    static func passesInAuthMode(holdsKeyboard: Bool, isEscapeShortcut: Bool) -> Bool {
+        holdsKeyboard && !isEscapeShortcut
+    }
+
     /// Space, Return or keypad Enter — the keyboard equivalents of pressing the
     /// "Kilidi Aç" button.
     private static func isUnlockKey(_ event: CGEvent) -> Bool {
@@ -171,8 +187,8 @@ final class InputBlocker {
     }
 
     /// App/Space-switching and launcher shortcuts that must stay blocked even
-    /// while the auth sheet is up. Keyboard-only: all mouse/scroll passes so the
-    /// sheet (and the shield's click-to-recover) stay usable. Conservative
+    /// while the auth panel is up. Keyboard-only: all mouse/scroll passes so the
+    /// panel stays usable. Conservative
     /// denylist — anything not listed (incl. ⌘A/⌘C/⌘V and plain typing) passes
     /// through to the password field.
     private static func isEscapeShortcut(type: CGEventType, event: CGEvent) -> Bool {
@@ -200,14 +216,14 @@ final class InputBlocker {
     }
 
     /// Enter authentication mode: the tap stays live but only swallows escape
-    /// shortcuts; plain input reaches the auth sheet.
+    /// shortcuts; plain input reaches the password field.
     func beginAuthMode() {
         authMode = true
     }
 
     /// Leave authentication mode: resume swallowing all input and re-arm the
     /// first-interaction trigger. Returns whether the tap is live afterwards;
-    /// false means the caller must fail safe rather than show a non-blocking lock.
+    /// false means the tap is dead; the shield, kiosk and password field still work.
     @discardableResult
     func endAuthMode() -> Bool {
         authMode = false

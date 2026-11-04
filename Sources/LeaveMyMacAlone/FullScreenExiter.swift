@@ -38,6 +38,33 @@ enum FullScreenExiter {
         return AXUIElementSetAttributeValue(window, fullScreenAttribute, kCFBooleanFalse) == .success
     }
 
+    /// Takes every regular app's windows out of native full-screen. A full-screen Space
+    /// the shield cannot cover must not outlive the lock, whether it sits on another
+    /// display or one swipe away. On a dispatch queue because an unresponsive app can
+    /// stall each AX call for up to the messaging timeout: that must block neither the
+    /// main run loop, which the keyboard tap needs, nor the Swift concurrency pool.
+    @MainActor
+    static func exitEveryFullScreenInBackground() {
+        let me = NSRunningApplication.current.processIdentifier
+        let pids = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.processIdentifier != me }
+            .map(\.processIdentifier)
+        DispatchQueue.global(qos: .userInitiated).async {
+            for pid in pids { exitFullScreenWindows(ofPID: pid) }
+        }
+    }
+
+    private static func exitFullScreenWindows(ofPID pid: pid_t) {
+        let app = AXUIElementCreateApplication(pid)
+        _ = AXUIElementSetMessagingTimeout(app, Float(0.5))
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
+              let windows = value as? [AXUIElement] else { return }
+        for window in windows where isFullScreen(window) {
+            AXUIElementSetAttributeValue(window, fullScreenAttribute, kCFBooleanFalse)
+        }
+    }
+
     /// The app's focused window, falling back to its main window.
     private static func focusedWindow(of app: AXUIElement) -> AXUIElement? {
         copyWindow(app, kAXFocusedWindowAttribute as CFString)

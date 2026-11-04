@@ -25,6 +25,8 @@ let package = Package(
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("LocalAuthentication"),
+                .linkedFramework("LocalAuthenticationEmbeddedUI"),
+                .linkedFramework("OpenDirectory"),
                 .linkedFramework("IOKit"),
                 .linkedFramework("Carbon"),
                 .linkedFramework("AVFoundation"),

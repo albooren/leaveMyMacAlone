@@ -51,7 +51,7 @@ The built-in lock is great for security, but it's not made for "I'm away, but my
 - ⏸️ **Pauses music and video** when you lock, so nothing keeps playing at an empty desk (they don't restart by themselves). Want music to keep going? Turn off "Pause music and video".
 - ☕ **Stays awake** while locked (optional).
 - 📸 **Intruder photo** *(off by default)* — if someone keeps trying to get in, it takes a photo with the front camera and saves it to the `Pictures/LeaveMyMacAlone` folder on your Mac. You get a notification when you unlock.
-- 🖥️ **Works over full-screen apps** — if you lock from a full-screen app (Slack, Safari, a video), it steps out of full screen so the lock covers everything.
+- 🖥️ **Works over full-screen apps** — when you lock, every app in full screen (Slack, Safari, a video, on any display) steps out of it so the lock covers everything.
 - 🔄 **Updates itself** — new versions download quietly and install with a quick restart of the app, never while the Mac is locked. You can turn this off in the menu.
 - 🌍 English and Turkish (follows your Mac's language).
 
@@ -87,6 +87,7 @@ The built-in lock is great for security, but it's not made for "I'm away, but my
 
 - **Closing a laptop's lid still puts it to sleep.** Keep the lid open (or use an external display and power).
 - **Holding the power button** always turns the Mac off — no app can block that.
+- **Logging out or restarting is blocked while locked.** Unlock first.
 - It's meant to stop a curious co-worker or a cat on the keyboard, **not** to replace your Mac's real security.
   For real security, also use your Mac's own lock and FileVault.
 - Some **games** use their own kind of full screen that the app can't step out of; the lock may end up behind them.
@@ -97,6 +98,7 @@ The built-in lock is great for security, but it's not made for "I'm away, but my
 ## 🔐 Privacy
 
 - **No tracking, no accounts, no data collection.**
+- **Your password stays yours.** You type it into the app's own lock screen, and macOS checks it. The app never stores or sends it.
 - The only thing it fetches from the internet is the update check (once a day, from this GitHub page). Nothing about you or your Mac is sent.
   Turn off **Update automatically** and it never goes online unless you press **Check now**.
 - Intruder photos stay on your Mac only, in `Pictures/LeaveMyMacAlone`. They are never uploaded.

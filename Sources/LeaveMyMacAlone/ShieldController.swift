@@ -1,4 +1,5 @@
 import AppKit
+import LocalAuthentication
 import SwiftUI
 import LeaveMyMacAloneCore
 
@@ -8,12 +9,10 @@ final class KeyableWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
-    // A click on the shield OUTSIDE the unlock button. The mouse is not tapped,
-    // so clicks always reach here: while locked it flashes the "still locked"
-    // feedback, and while authenticating it re-presents a buried auth sheet
-    // (tap-independent recovery, so a covering window can never strand the user).
-    // Clicks on the SwiftUI button are consumed by the button and never reach
-    // this handler.
+    // A click on the shield OUTSIDE the controls. The mouse is not tapped, so clicks
+    // always reach here: while locked it flashes the "still locked" feedback, and
+    // while authenticating it returns focus to the password field. Clicks on SwiftUI
+    // controls are consumed by them and never reach this handler.
     var onInteract: (() -> Void)?
 
     override func mouseDown(with event: NSEvent) { onInteract?() }
@@ -21,11 +20,11 @@ final class KeyableWindow: NSWindow {
     override func otherMouseDown(with event: NSEvent) { onInteract?() }
 }
 
-// The shield is rarely the key window while the auth sheet is up, so a click on
-// the unlock button would otherwise be spent merely activating the window and
-// the user would need a second click. Accepting first mouse delivers that first
+// With several displays only one shield window is key, so a click on another
+// display's unlock button would otherwise be spent merely activating that window
+// and the user would need a second click. Accepting first mouse delivers that first
 // click straight to the SwiftUI button. Clicks landing outside any control still
-// fall through to KeyableWindow.mouseDown (the recovery affordance).
+// fall through to KeyableWindow.mouseDown.
 final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
@@ -45,6 +44,8 @@ final class OverlayModel: ObservableObject {
     // Icon drifting DVD-style across the shield; nil = none.
     @Published var floating: FloatingIcon?
     @Published var floatingSize: FloatingIconSize = .medium
+    // The Touch ID / password panel; nil = the plain unlock button.
+    @Published var auth: AuthPanelState?
 
     init(opacity: Double) {
         self.opacity = opacity
@@ -63,7 +64,7 @@ private struct LockShake {
 // Theme-matching unlock button: a frosted-glass capsule with a white label,
 // instead of the system accent (blue) prominent style which clashes with the
 // dark, dimmed lock overlay.
-private struct GlassButtonStyle: ButtonStyle {
+struct GlassButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
@@ -134,6 +135,7 @@ extension AwayPreset {
 // unlock button. Animates in on lock and out on unlock, driven by OverlayModel.
 struct OverlayView: View {
     @ObservedObject var model: OverlayModel
+    let displayID: CGDirectDisplayID
     let onUnlock: () -> Void
 
     var body: some View {
@@ -183,17 +185,25 @@ struct OverlayView: View {
                         .monospacedDigit()
                 }
 
-                // Explicit unlock affordance under the clock. Brings up the
-                // password / Touch ID screen on top of the dimmed overlay.
-                Button(action: onUnlock) {
-                    Label("Kilidi Aç", systemImage: "lock.open.fill")
+                // Explicit unlock affordance under the clock. It opens the Touch ID /
+                // password panel right here in the shield; with several displays the
+                // panel appears on one and the others just stay covered.
+                if let auth = model.auth {
+                    if auth.displayID == displayID {
+                        AuthPanelView(state: auth)
+                            .padding(.top, 10)
+                    }
+                } else {
+                    Button(action: onUnlock) {
+                        Label("Kilidi Aç", systemImage: "lock.open.fill")
+                    }
+                    .buttonStyle(GlassButtonStyle())
+                    .padding(.top, 10)
+                    // Recede the button as the lock opens; it has no role during the
+                    // exit flourish.
+                    .opacity(model.unlocking ? 0 : 1)
+                    .disabled(model.unlocking)
                 }
-                .buttonStyle(GlassButtonStyle())
-                .padding(.top, 10)
-                // Recede the button as the lock opens; it has no role during the
-                // exit flourish.
-                .opacity(model.unlocking ? 0 : 1)
-                .disabled(model.unlocking)
             }
             .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.6), radius: 6)
@@ -228,21 +238,21 @@ final class ShieldController {
     private var screenObserver: NSObjectProtocol?
     // Shared animation/appearance state for every shield's OverlayView.
     private let model = OverlayModel(opacity: 0.5)
-    // Tap-independent recovery hook invoked when the user clicks any shield
-    // window. Wired by AppController to the unlock/re-present flow.
+    // Invoked when the user clicks any shield window outside its controls. Wired by
+    // AppController to the flash / refocus flow.
     private var onInteract: (() -> Void)?
-    // Invoked by the overlay's "Kilidi Aç" button; wired to the same
-    // begin-auth / re-present flow as a shield click.
+    // Invoked by the overlay's "Kilidi Aç" button; wired to the begin-auth flow.
     private var onUnlock: (() -> Void)?
-    // Window level applied to every shield. Defaults to the full shielding level
-    // (covers everything). While authenticating it drops just below the system
-    // auth dialog (see lowerBelowAuthDialog) so the password screen is usable on
-    // top. Persisted here so reassert()/rebuild keep the right level.
-    private var currentLevel = Int(CGShieldingWindowLevel())
+    // Window level of every shield: above everything, the whole time. Authentication
+    // happens inside the shield, so nothing ever needs to show on top of it.
+    private let shieldLevel = Int(CGShieldingWindowLevel())
+    // The display whose unlock button was pressed; the auth panel opens there.
+    private var pressedUnlockDisplay: CGDirectDisplayID?
     // Guards rebuilds so a queued screen-parameter notification that lands after
     // hide() cannot resurrect a ghost shield over the unlocked desktop.
     private var isShown = false
-    // Pending exit teardown; cancelled if a new lock arrives mid-animation.
+    // Pending exit fade and teardown; cancelled if a new lock arrives mid-animation.
+    private var fadeWork: DispatchWorkItem?
     private var dismissWork: DispatchWorkItem?
 
     // Animation timings (seconds).
@@ -262,13 +272,15 @@ final class ShieldController {
               onInteract: @escaping () -> Void,
               onUnlock: @escaping () -> Void) {
         // Abort any in-flight exit animation from a previous cycle.
+        fadeWork?.cancel()
+        fadeWork = nil
         dismissWork?.cancel()
         dismissWork = nil
         self.onInteract = onInteract
         self.onUnlock = onUnlock
-        // A fresh lock starts in the locked state → full shielding level.
-        currentLevel = Int(CGShieldingWindowLevel())
         // Reset to the pre-entrance state; the entrance is sprung in below.
+        model.auth = nil
+        pressedUnlockDisplay = nil
         model.opacity = opacity
         model.away = away
         model.floating = floating
@@ -287,7 +299,7 @@ final class ShieldController {
             }
         }
         // Allow the borderless app to become active so the window can be key.
-        NSApp.activate()
+        Foreground.take()
         windowsByDisplay.first?.value.makeKeyAndOrderFront(nil)
         // Let the transparent first frame render, then spring the overlay in.
         DispatchQueue.main.async { [weak self] in
@@ -311,44 +323,82 @@ final class ShieldController {
     }
 
     /// Re-raise existing shields and re-take activation without rebuilding.
-    /// Used after sleep/wake or a session switch, where a session-level overlay
-    /// can be displaced behind other windows.
+    /// Used after sleep/wake, a Space change, or another app taking the foreground.
     func reassert() {
         guard isShown else { return }
         rebuildWindows()
-        NSApp.activate()
-    }
-
-    /// Drop the shield to just below the system authentication dialog. macOS
-    /// presents the `.deviceOwnerAuthentication` UI at the screen-saver level
-    /// (1000); the full shielding level (~2.1e9) sits far above it, which is why
-    /// the password screen was being buried behind the dimmed overlay. One below
-    /// screen-saver keeps the shield above the menu bar, Dock and every app
-    /// window while letting the auth dialog show on top.
-    func lowerBelowAuthDialog() {
-        applyLevel(Int(NSWindow.Level.screenSaver.rawValue) - 1)
-    }
-
-    /// Restore the full shielding level (covers everything). Used when returning
-    /// to the plain locked state, where no auth dialog should show through.
-    func raiseToFullShield() {
-        applyLevel(Int(CGShieldingWindowLevel()))
-    }
-
-    private func applyLevel(_ level: Int) {
-        currentLevel = level
-        for window in windowsByDisplay.values {
-            window.level = NSWindow.Level(rawValue: level)
-            window.orderFrontRegardless()
+        if model.auth != nil {
+            focusAuth()
+        } else {
+            Foreground.take()
         }
     }
 
+    // MARK: - Auth panel
+
+    /// Open the Touch ID / password panel inside the shield, on the display whose
+    /// button was pressed (or the one under the cursor for the keyboard route).
+    func presentAuth(biometricContext: LAContext?, actions: AuthPanelActions) {
+        let mouse = NSEvent.mouseLocation
+        let underCursor = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+            .map(Self.displayID(of:))
+        guard let display = [pressedUnlockDisplay, underCursor].compactMap({ $0 })
+                .first(where: { windowsByDisplay[$0] != nil })
+                ?? windowsByDisplay.keys.first else { return }
+        model.auth = AuthPanelState(displayID: display,
+                                    biometricContext: biometricContext,
+                                    actions: actions)
+        focusAuth()
+    }
+
+    /// Back to the plain unlock button.
+    func dismissAuth() {
+        model.auth = nil
+        pressedUnlockDisplay = nil
+    }
+
+    /// Make the panel's window key so typing lands in the password field.
+    func focusAuth() {
+        guard let display = model.auth?.displayID, let window = windowsByDisplay[display] else { return }
+        Foreground.take()
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Take the keyboard back from another process's non-activating panel with a click
+    /// at the cursor. Measured on macOS 27: making our window key again, re-activating
+    /// and re-ordering it all leave the keyboard with the panel; only a click moves it.
+    /// A shield covers every display at the top level, so the click can only land on us.
+    func reclaimKeyboard() {
+        guard isShown, model.auth != nil, let cursor = CGEvent(source: nil)?.location else { return }
+        let source = CGEventSource(stateID: .hidSystemState)
+        for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+            CGEvent(mouseEventSource: source, mouseType: type,
+                    mouseCursorPosition: cursor, mouseButton: .left)?.post(tap: .cghidEventTap)
+        }
+    }
+
+    /// Touch ID / Watch gave up (too many tries, lockout): only the password is left.
+    func biometricsEnded() {
+        model.auth?.biometricContext = nil
+    }
+
+    func setAuthVerifying(_ verifying: Bool) {
+        model.auth?.isVerifying = verifying
+    }
+
+    /// Show why the password was not accepted: clear the field and shake the lock.
+    func rejectPassword(_ message: AuthPanelMessage) {
+        model.auth?.message = message
+        model.auth?.clearToken &+= 1
+        flashLocked()
+    }
+
     /// Animate the overlay out, then tear the windows down. `success` plays the
-    /// extra "lock opens then lifts away" flourish; a plain (e.g. fail-safe)
-    /// dismissal just fades.
+    /// extra "lock opens then lifts away" flourish; otherwise it just fades.
     func hide(success: Bool = false) {
         guard isShown else { return }
         isShown = false
+        dismissAuth()
         if let token = screenObserver {
             NotificationCenter.default.removeObserver(token)
             screenObserver = nil
@@ -364,7 +414,7 @@ final class ShieldController {
             fadeDelay = unlockHoldDuration
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + fadeDelay) { [weak self] in
+        let fade = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 withAnimation(.easeIn(duration: self.exitDuration)) {
@@ -372,6 +422,8 @@ final class ShieldController {
                 }
             }
         }
+        fadeWork = fade
+        DispatchQueue.main.asyncAfter(deadline: .now() + fadeDelay, execute: fade)
 
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated { self?.finishHide() }
@@ -386,6 +438,7 @@ final class ShieldController {
         windowsByDisplay.removeAll()
         onInteract = nil
         onUnlock = nil
+        fadeWork = nil
         dismissWork = nil
         model.unlocking = false
         model.revealed = false
@@ -396,21 +449,17 @@ final class ShieldController {
         // desktop.
         guard isShown else { return }
 
-        // Use the currently-selected level: the full shielding level when
-        // locked, or just-below-the-auth-dialog while authenticating (the auth
-        // dialog actually sits at the screen-saver level, well below the full
-        // shielding level — see lowerBelowAuthDialog).
-        let shieldLevel = currentLevel
-
         var live: [CGDirectDisplayID: KeyableWindow] = [:]
         for screen in NSScreen.screens {
             let id = Self.displayID(of: screen)
-            let window = windowsByDisplay[id] ?? makeWindow(level: shieldLevel, screen: screen)
+            let window = windowsByDisplay[id] ?? makeWindow(displayID: id, screen: screen)
             // Reused windows: keep their content view (and live clock); just
             // re-apply geometry, level and the recovery hook.
             window.level = NSWindow.Level(rawValue: shieldLevel)
             window.setFrame(screen.frame, display: true)
             window.onInteract = onInteract
+            // hide() makes windows click-through for its fade; a re-lock may reuse them.
+            window.ignoresMouseEvents = false
             window.orderFrontRegardless()
             live[id] = window
         }
@@ -420,9 +469,15 @@ final class ShieldController {
             window.orderOut(nil)
         }
         windowsByDisplay = live
+
+        // The display showing the auth panel went away: move the panel.
+        if let display = model.auth?.displayID, live[display] == nil, let other = live.keys.first {
+            model.auth?.displayID = other
+            focusAuth()
+        }
     }
 
-    private func makeWindow(level: Int, screen: NSScreen) -> KeyableWindow {
+    private func makeWindow(displayID: CGDirectDisplayID, screen: NSScreen) -> KeyableWindow {
         let window = KeyableWindow(
             contentRect: screen.frame,
             styleMask: .borderless,
@@ -439,12 +494,22 @@ final class ShieldController {
 
         let host = FirstMouseHostingView(
             rootView: OverlayView(model: model,
-                                  onUnlock: { [weak self] in self?.onUnlock?() })
+                                  displayID: displayID,
+                                  onUnlock: { [weak self] in
+                                      self?.pressedUnlockDisplay = displayID
+                                      self?.onUnlock?()
+                                  })
         )
         host.frame = window.contentLayoutRect
         host.autoresizingMask = [.width, .height]
         window.contentView = host
         return window
+    }
+
+    /// Test hook: visible and taking clicks on every display.
+    var isSolidForTesting: Bool {
+        isShown && model.revealed && !windowsByDisplay.isEmpty
+            && windowsByDisplay.values.allSatisfy { !$0.ignoresMouseEvents && $0.isVisible }
     }
 
     private static func displayID(of screen: NSScreen) -> CGDirectDisplayID {

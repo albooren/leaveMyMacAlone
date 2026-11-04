@@ -28,4 +28,18 @@ final class InputBlockerTests: XCTestCase {
         blocker.stop()
         XCTAssertFalse(blocker.isAuthModeActiveForTesting)
     }
+
+    // The password field lives in our own window, so plain typing may only pass
+    // while we hold the keyboard; otherwise it would land in whichever app does.
+    func testPlainTypingPassesWhileWeHoldTheKeyboard() {
+        XCTAssertTrue(InputBlocker.passesInAuthMode(holdsKeyboard: true, isEscapeShortcut: false))
+    }
+
+    func testPlainTypingIsSwallowedWhenWeDoNotHoldTheKeyboard() {
+        XCTAssertFalse(InputBlocker.passesInAuthMode(holdsKeyboard: false, isEscapeShortcut: false))
+    }
+
+    func testEscapeShortcutIsSwallowedEvenWhileWeHoldTheKeyboard() {
+        XCTAssertFalse(InputBlocker.passesInAuthMode(holdsKeyboard: true, isEscapeShortcut: true))
+    }
 }

@@ -1,7 +1,11 @@
 import AppKit
+import Carbon.HIToolbox
 
 /// Kiosk lockdown via NSApplication.presentationOptions: disables Cmd+Tab,
 /// Cmd+Opt+Esc (force quit), logout/restart/shutdown, and hides Dock + menu bar.
+/// Also turns system-wide hot keys off, so a launcher's shortcut can't fire while the
+/// password field has blinded the event tap. Universal Access shortcuts stay on, so a
+/// VoiceOver user can still reach the password field. Both only hold while we are active.
 ///
 /// The combination below is the documented valid set: every disable* flag and
 /// hideMenuBar require hideDock, which is present. An invalid combination would
@@ -12,6 +16,7 @@ final class KioskMode {
 
     private var savedPolicy: NSApplication.ActivationPolicy?
     private var isEngaged = false
+    private var hotKeyMode: UnsafeMutableRawPointer?
 
     private static let lockedOptions: NSApplication.PresentationOptions = [
         .hideDock,
@@ -33,9 +38,10 @@ final class KioskMode {
         if app.activationPolicy() != .regular {
             app.setActivationPolicy(.regular)
         }
-        app.activate() // non-deprecated form (macOS 14+)
+        Foreground.take()
 
         app.presentationOptions = Self.lockedOptions
+        hotKeyMode = PushSymbolicHotKeyMode(OptionBits(kHIHotKeyModeAllDisabledExceptUniversalAccess))
         isEngaged = true
     }
 
@@ -48,7 +54,7 @@ final class KioskMode {
         if app.activationPolicy() != .regular {
             app.setActivationPolicy(.regular)
         }
-        app.activate()
+        Foreground.take()
         app.presentationOptions = Self.lockedOptions
     }
 
@@ -57,6 +63,8 @@ final class KioskMode {
         let app = NSApplication.shared
 
         app.presentationOptions = [] // always restore to empty
+        if let hotKeyMode { PopSymbolicHotKeyMode(hotKeyMode) }
+        hotKeyMode = nil
 
         if let policy = savedPolicy, policy != app.activationPolicy() {
             app.setActivationPolicy(policy) // back to .accessory

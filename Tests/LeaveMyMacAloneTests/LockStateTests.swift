@@ -61,4 +61,31 @@ final class LockStateTests: XCTestCase {
         XCTAssertFalse(machine.abortLock())
         XCTAssertEqual(machine.state, .unlocked)
     }
+
+    // A quit request (Cmd+Tab + Q, an Apple event) must never end a lock: quitting
+    // removes the shield and the input block without any authentication.
+    func testTerminationAllowedWhileUnlocked() {
+        XCTAssertTrue(LockStateMachine().allowsTermination)
+    }
+
+    func testTerminationRefusedWhileLocked() {
+        var machine = LockStateMachine()
+        _ = machine.lock()
+        XCTAssertFalse(machine.allowsTermination)
+    }
+
+    func testTerminationRefusedWhileAuthenticating() {
+        var machine = LockStateMachine()
+        _ = machine.lock()
+        _ = machine.beginAuth()
+        XCTAssertFalse(machine.allowsTermination)
+    }
+
+    func testTerminationAllowedAgainAfterUnlock() {
+        var machine = LockStateMachine()
+        _ = machine.lock()
+        _ = machine.beginAuth()
+        _ = machine.authSucceeded()
+        XCTAssertTrue(machine.allowsTermination)
+    }
 }
